@@ -1,4 +1,4 @@
-import { App, PluginSettingTab, Setting, TFolder } from "obsidian";
+import { App, PluginSettingTab, Setting, TFolder, debounce } from "obsidian";
 import type VaultRecipePlugin from "./main";
 import { AIProviderType } from "./types";
 import { RecipeLanguage, LANGUAGES } from "./languages";
@@ -7,6 +7,7 @@ import {
 	fetchAnthropicModels,
 	fetchGoogleModels,
 } from "./providers/base";
+import { formatError } from "./utils";
 
 export interface VaultRecipeSettings {
 	openaiApiKey: string;
@@ -34,12 +35,21 @@ export const DEFAULT_SETTINGS: VaultRecipeSettings = {
 	overviewFileName: "Rezept-Übersicht",
 };
 
+/** Cache for fetched model lists, keyed by API key. */
+const modelCache = new Map<string, string[]>();
+
 export class VaultRecipeSettingTab extends PluginSettingTab {
 	plugin: VaultRecipePlugin;
+	private debouncedSave: () => void;
 
 	constructor(app: App, plugin: VaultRecipePlugin) {
 		super(app, plugin);
 		this.plugin = plugin;
+		this.debouncedSave = debounce(
+			() => this.plugin.saveSettings(),
+			500,
+			true
+		);
 	}
 
 	private addModelDropdown(
@@ -65,8 +75,6 @@ export class VaultRecipeSettingTab extends PluginSettingTab {
 			return;
 		}
 
-		setting.setDesc("Loading models...");
-
 		setting.addDropdown((dropdown) => {
 			dropdown.addOption(currentValue, currentValue);
 			dropdown.setValue(currentValue);
@@ -75,22 +83,65 @@ export class VaultRecipeSettingTab extends PluginSettingTab {
 				await this.plugin.saveSettings();
 			});
 
-			fetchFn(apiKey)
-				.then((models) => {
-					dropdown.selectEl.empty();
-					for (const model of models) {
-						dropdown.addOption(model, model);
-					}
-					if (!models.includes(currentValue)) {
-						dropdown.addOption(currentValue, currentValue);
-					}
-					dropdown.setValue(currentValue);
-					setting.setDesc(`${models.length} models available`);
-				})
-				.catch(() => {
-					setting.setDesc("Failed to load models — check API key");
-				});
+			const cached = modelCache.get(apiKey);
+			if (cached) {
+				this.populateModelDropdown(dropdown, cached, currentValue, setting);
+			} else {
+				setting.setDesc("Loading models...");
+				fetchFn(apiKey)
+					.then((models) => {
+						modelCache.set(apiKey, models);
+						this.populateModelDropdown(dropdown, models, currentValue, setting);
+					})
+					.catch((e: unknown) => {
+						console.error(
+							`[Vault Recipe] Failed to fetch models for ${settingKey}:`,
+							e
+						);
+						setting.setDesc(`Failed to load models: ${formatError(e)}`);
+					});
+			}
 		});
+	}
+
+	private populateModelDropdown(
+		dropdown: { selectEl: HTMLSelectElement; addOption: (value: string, display: string) => unknown; setValue: (value: string) => unknown },
+		models: string[],
+		currentValue: string,
+		setting: Setting
+	): void {
+		dropdown.selectEl.empty();
+		for (const model of models) {
+			dropdown.addOption(model, model);
+		}
+		if (!models.includes(currentValue)) {
+			dropdown.addOption(currentValue, currentValue);
+		}
+		dropdown.setValue(currentValue);
+		setting.setDesc(`${models.length} models available`);
+	}
+
+	private addApiKeyField(
+		containerEl: HTMLElement,
+		name: string,
+		desc: string,
+		key: "openaiApiKey" | "anthropicApiKey" | "googleApiKey",
+		placeholder: string
+	): void {
+		new Setting(containerEl)
+			.setName(name)
+			.setDesc(desc)
+			.addText((text) => {
+				text.inputEl.type = "password";
+				text.inputEl.style.width = "300px";
+				text
+					.setPlaceholder(placeholder)
+					.setValue(this.plugin.settings[key])
+					.onChange((value) => {
+						this.plugin.settings[key] = value;
+						this.debouncedSave();
+					});
+			});
 	}
 
 	display(): void {
@@ -104,59 +155,12 @@ export class VaultRecipeSettingTab extends PluginSettingTab {
 		warningEl.createEl("p", {
 			text: "⚠ API keys are stored in your vault folder. Add .obsidian/plugins/vault-recipe/data.json to .gitignore if you sync your vault via Git.",
 		});
-		warningEl.style.padding = "10px";
-		warningEl.style.borderRadius = "5px";
-		warningEl.style.marginBottom = "16px";
-		warningEl.style.border = "1px solid var(--text-accent)";
-		warningEl.style.backgroundColor = "var(--background-secondary)";
-
 		// --- API Keys ---
 		containerEl.createEl("h3", { text: "API Keys" });
 
-		new Setting(containerEl)
-			.setName("OpenAI API Key")
-			.setDesc("Required for OpenAI chat")
-			.addText((text) => {
-				text.inputEl.type = "password";
-				text.inputEl.style.width = "300px";
-				text
-					.setPlaceholder("sk-...")
-					.setValue(this.plugin.settings.openaiApiKey)
-					.onChange(async (value) => {
-						this.plugin.settings.openaiApiKey = value;
-						await this.plugin.saveSettings();
-					});
-			});
-
-		new Setting(containerEl)
-			.setName("Anthropic API Key")
-			.setDesc("Required for Claude chat")
-			.addText((text) => {
-				text.inputEl.type = "password";
-				text.inputEl.style.width = "300px";
-				text
-					.setPlaceholder("sk-ant-...")
-					.setValue(this.plugin.settings.anthropicApiKey)
-					.onChange(async (value) => {
-						this.plugin.settings.anthropicApiKey = value;
-						await this.plugin.saveSettings();
-					});
-			});
-
-		new Setting(containerEl)
-			.setName("Google API Key")
-			.setDesc("Required for Gemini chat")
-			.addText((text) => {
-				text.inputEl.type = "password";
-				text.inputEl.style.width = "300px";
-				text
-					.setPlaceholder("AI...")
-					.setValue(this.plugin.settings.googleApiKey)
-					.onChange(async (value) => {
-						this.plugin.settings.googleApiKey = value;
-						await this.plugin.saveSettings();
-					});
-			});
+		this.addApiKeyField(containerEl, "OpenAI API Key", "Required for OpenAI chat", "openaiApiKey", "sk-...");
+		this.addApiKeyField(containerEl, "Anthropic API Key", "Required for Claude chat", "anthropicApiKey", "sk-ant-...");
+		this.addApiKeyField(containerEl, "Google API Key", "Required for Gemini chat", "googleApiKey", "AI...");
 
 		// --- Provider Settings ---
 		containerEl.createEl("h3", { text: "Provider Settings" });
@@ -256,9 +260,9 @@ export class VaultRecipeSettingTab extends PluginSettingTab {
 				text
 					.setPlaceholder("Rezept-Übersicht")
 					.setValue(this.plugin.settings.overviewFileName)
-					.onChange(async (value) => {
+					.onChange((value) => {
 						this.plugin.settings.overviewFileName = value.trim();
-						await this.plugin.saveSettings();
+						this.debouncedSave();
 					})
 			);
 	}

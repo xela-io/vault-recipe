@@ -1,9 +1,9 @@
 import { AIProvider, requestWithRetry } from "./base";
 import { ChatMessage } from "../types";
 import { VaultRecipeSettings } from "../settings";
+import { ANTHROPIC_API_VERSION, ANTHROPIC_MAX_TOKENS } from "../constants";
 
 export class AnthropicProvider implements AIProvider {
-	readonly supportsEmbeddings = false;
 	private apiKey: string;
 	private chatModel: string;
 
@@ -14,10 +14,9 @@ export class AnthropicProvider implements AIProvider {
 
 	async chatCompletion(
 		messages: ChatMessage[],
-		systemPrompt?: string
+		systemPrompt?: string,
+		maxTokens?: number
 	): Promise<string> {
-		if (!this.apiKey) throw new Error("Anthropic API key not configured");
-
 		// Anthropic uses a different message format: no system role in messages
 		const anthropicMessages = messages
 			.filter((m) => m.role !== "system")
@@ -28,8 +27,9 @@ export class AnthropicProvider implements AIProvider {
 
 		const body: Record<string, unknown> = {
 			model: this.chatModel,
-			max_tokens: 4096,
+			max_tokens: maxTokens ?? ANTHROPIC_MAX_TOKENS,
 			messages: anthropicMessages,
+			temperature: 0.1,
 		};
 
 		if (systemPrompt) {
@@ -39,11 +39,10 @@ export class AnthropicProvider implements AIProvider {
 		const response = await requestWithRetry(
 			"https://api.anthropic.com/v1/messages",
 			{
-				url: "https://api.anthropic.com/v1/messages",
 				method: "POST",
 				headers: {
 					"x-api-key": this.apiKey,
-					"anthropic-version": "2023-06-01",
+					"anthropic-version": ANTHROPIC_API_VERSION,
 					"Content-Type": "application/json",
 				},
 				body: JSON.stringify(body),
@@ -55,11 +54,5 @@ export class AnthropicProvider implements AIProvider {
 			return content[0].text;
 		}
 		throw new Error("Unexpected Anthropic response format");
-	}
-
-	async generateEmbedding(_text: string): Promise<number[]> {
-		throw new Error(
-			"Anthropic does not support embeddings. Please use OpenAI or Google as your embedding provider."
-		);
 	}
 }

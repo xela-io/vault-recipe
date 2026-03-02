@@ -1,19 +1,18 @@
 import { requestUrl, RequestUrlParam } from "obsidian";
 import { ChatMessage, AIProviderType } from "../types";
 import { VaultRecipeSettings } from "../settings";
+import { ANTHROPIC_API_VERSION } from "../constants";
 import { OpenAIProvider } from "./openai";
 import { AnthropicProvider } from "./anthropic";
 import { GoogleProvider } from "./google";
 
 export interface AIProvider {
-	readonly supportsEmbeddings: boolean;
-	chatCompletion(messages: ChatMessage[], systemPrompt?: string): Promise<string>;
-	generateEmbedding(text: string): Promise<number[]>;
+	chatCompletion(messages: ChatMessage[], systemPrompt?: string, maxTokens?: number): Promise<string>;
 }
 
 export async function requestWithRetry(
 	url: string,
-	options: RequestUrlParam,
+	options: Omit<RequestUrlParam, "url">,
 	maxRetries = 3
 ): Promise<ReturnType<typeof requestUrl>> {
 	let lastError: Error | null = null;
@@ -40,10 +39,20 @@ export async function fetchOpenAIModels(apiKey: string): Promise<string[]> {
 		method: "GET",
 		headers: { Authorization: `Bearer ${apiKey}` },
 	});
-	return (response.json.data as { id: string }[])
-		.map((m) => m.id)
-		.filter((id) => /^(gpt-|o\d|chatgpt-)/.test(id))
-		.sort();
+	const allModels = (response.json.data as { id: string }[]).map(
+		(m) => m.id
+	);
+	const chatModels = allModels.filter((id) =>
+		/^(gpt-|o\d|chatgpt-|omni-)/.test(id)
+	);
+	if (chatModels.length === 0) {
+		console.warn(
+			"[Vault Recipe] OpenAI: no chat models matched filter. All models from API:",
+			allModels
+		);
+		return allModels.sort();
+	}
+	return chatModels.sort();
 }
 
 export async function fetchAnthropicModels(apiKey: string): Promise<string[]> {
@@ -52,7 +61,7 @@ export async function fetchAnthropicModels(apiKey: string): Promise<string[]> {
 		method: "GET",
 		headers: {
 			"x-api-key": apiKey,
-			"anthropic-version": "2023-06-01",
+			"anthropic-version": ANTHROPIC_API_VERSION,
 		},
 	});
 	return (response.json.data as { id: string }[])
@@ -79,10 +88,37 @@ export async function fetchGoogleModels(apiKey: string): Promise<string[]> {
 		.sort();
 }
 
+/** Check whether the given provider has an API key configured. */
+export function isProviderConfigured(
+	type: AIProviderType,
+	settings: VaultRecipeSettings
+): boolean {
+	switch (type) {
+		case AIProviderType.OpenAI:
+			return !!settings.openaiApiKey;
+		case AIProviderType.Anthropic:
+			return !!settings.anthropicApiKey;
+		case AIProviderType.Google:
+			return !!settings.googleApiKey;
+		default:
+			return false;
+	}
+}
+
+const PROVIDER_NAMES: Record<AIProviderType, string> = {
+	[AIProviderType.OpenAI]: "OpenAI",
+	[AIProviderType.Anthropic]: "Anthropic",
+	[AIProviderType.Google]: "Google",
+};
+
 export function createProvider(
 	type: AIProviderType,
 	settings: VaultRecipeSettings
 ): AIProvider {
+	if (!isProviderConfigured(type, settings)) {
+		throw new Error(`${PROVIDER_NAMES[type] ?? type} API key not configured`);
+	}
+
 	switch (type) {
 		case AIProviderType.OpenAI:
 			return new OpenAIProvider(settings);

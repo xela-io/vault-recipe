@@ -3,7 +3,6 @@ import { ChatMessage } from "../types";
 import { VaultRecipeSettings } from "../settings";
 
 export class GoogleProvider implements AIProvider {
-	readonly supportsEmbeddings = true;
 	private apiKey: string;
 	private chatModel: string;
 
@@ -14,10 +13,9 @@ export class GoogleProvider implements AIProvider {
 
 	async chatCompletion(
 		messages: ChatMessage[],
-		systemPrompt?: string
+		systemPrompt?: string,
+		maxTokens?: number
 	): Promise<string> {
-		if (!this.apiKey) throw new Error("Google API key not configured");
-
 		// Google Gemini: map roles. system message gets merged into first user message.
 		const geminiContents: { role: string; parts: { text: string }[] }[] =
 			[];
@@ -58,14 +56,21 @@ export class GoogleProvider implements AIProvider {
 
 		const url = `https://generativelanguage.googleapis.com/v1beta/models/${this.chatModel}:generateContent`;
 
+		const generationConfig: Record<string, unknown> = { temperature: 0.1 };
+		if (maxTokens) {
+			generationConfig.maxOutputTokens = maxTokens;
+		}
+
 		const response = await requestWithRetry(url, {
-			url,
 			method: "POST",
 			headers: {
 				"Content-Type": "application/json",
 				"x-goog-api-key": this.apiKey,
 			},
-			body: JSON.stringify({ contents: geminiContents }),
+			body: JSON.stringify({
+				contents: geminiContents,
+				generationConfig,
+			}),
 		});
 
 		const candidates = response.json.candidates;
@@ -77,25 +82,5 @@ export class GoogleProvider implements AIProvider {
 			return candidates[0].content.parts[0].text;
 		}
 		throw new Error("Unexpected Google Gemini response format");
-	}
-
-	async generateEmbedding(text: string): Promise<number[]> {
-		if (!this.apiKey) throw new Error("Google API key not configured");
-
-		const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-embedding-001:embedContent`;
-
-		const response = await requestWithRetry(url, {
-			url,
-			method: "POST",
-			headers: {
-				"Content-Type": "application/json",
-				"x-goog-api-key": this.apiKey,
-			},
-			body: JSON.stringify({
-				content: { parts: [{ text }] },
-			}),
-		});
-
-		return response.json.embedding.values;
 	}
 }

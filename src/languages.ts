@@ -41,6 +41,34 @@ export interface LanguageConfig {
 	dvTime: string;
 	dvRating: string;
 	dvImported: string;
+	/** Modal UI strings */
+	modalImportTitle: string;
+	modalImportBtn: string;
+	modalExtracting: string;
+	modalInvalidUrl: string;
+	modalCancel: string;
+	modalSave: string;
+	modalSaving: string;
+	modalScaleTitle: string;
+	modalCurrentServings: (n: number) => string;
+	modalNewServings: string;
+	modalScaleBtn: string;
+	modalScaling: string;
+	modalScaleSuccess: (n: number) => string;
+	/** Progress stages */
+	modalFetching: string;
+	modalAnalyzing: string;
+	modalDownloadingImage: string;
+	modalSavingRecipe: string;
+	/** Validation */
+	modalNoApiKey: string;
+	modalProtocolError: string;
+	/** Warnings */
+	modalOverwriteWarning: string;
+	modalOverwrite: string;
+	modalImageFailed: string;
+	/** Overview empty state */
+	overviewEmpty: string;
 }
 
 const de: LanguageConfig = {
@@ -77,6 +105,29 @@ const de: LanguageConfig = {
 	dvTime: "Zeit",
 	dvRating: "Bewertung",
 	dvImported: "Importiert",
+	modalImportTitle: "Rezept von URL importieren",
+	modalImportBtn: "Importieren",
+	modalExtracting: "Rezept wird extrahiert...",
+	modalInvalidUrl: "Bitte eine gültige URL eingeben.",
+	modalCancel: "Abbrechen",
+	modalSave: "Speichern",
+	modalSaving: "Speichern...",
+	modalScaleTitle: "Rezept umrechnen",
+	modalCurrentServings: (n) => `Aktuelle Portionen: ${n}`,
+	modalNewServings: "Neue Portionen...",
+	modalScaleBtn: "Umrechnen",
+	modalScaling: "Rezept wird umgerechnet...",
+	modalScaleSuccess: (n) => `Rezept auf ${n} Portionen umgerechnet.`,
+	modalFetching: "Seite wird abgerufen...",
+	modalAnalyzing: "Rezept wird analysiert...",
+	modalDownloadingImage: "Bild wird heruntergeladen...",
+	modalSavingRecipe: "Rezept wird gespeichert...",
+	modalNoApiKey: "Kein API-Key für den gewählten Anbieter konfiguriert. Bitte in den Einstellungen hinterlegen.",
+	modalProtocolError: "Nur http:// und https:// URLs werden unterstützt.",
+	modalOverwriteWarning: "Ein Rezept mit diesem Namen existiert bereits. Erneut klicken zum Überschreiben.",
+	modalOverwrite: "Überschreiben",
+	modalImageFailed: "Rezept gespeichert, aber das Bild konnte nicht heruntergeladen werden.",
+	overviewEmpty: "Keine Rezepte im Ordner gefunden.",
 };
 
 const en: LanguageConfig = {
@@ -113,6 +164,29 @@ const en: LanguageConfig = {
 	dvTime: "Time",
 	dvRating: "Rating",
 	dvImported: "Imported",
+	modalImportTitle: "Import Recipe from URL",
+	modalImportBtn: "Import",
+	modalExtracting: "Extracting recipe...",
+	modalInvalidUrl: "Please enter a valid URL.",
+	modalCancel: "Cancel",
+	modalSave: "Save",
+	modalSaving: "Saving...",
+	modalScaleTitle: "Scale Recipe",
+	modalCurrentServings: (n) => `Current servings: ${n}`,
+	modalNewServings: "New servings...",
+	modalScaleBtn: "Scale",
+	modalScaling: "Scaling recipe...",
+	modalScaleSuccess: (n) => `Recipe scaled to ${n} servings.`,
+	modalFetching: "Fetching page...",
+	modalAnalyzing: "Analyzing recipe...",
+	modalDownloadingImage: "Downloading image...",
+	modalSavingRecipe: "Saving recipe...",
+	modalNoApiKey: "No API key configured for the selected provider. Please configure it in settings.",
+	modalProtocolError: "Only http:// and https:// URLs are supported.",
+	modalOverwriteWarning: "A recipe with this name already exists. Click again to overwrite.",
+	modalOverwrite: "Overwrite",
+	modalImageFailed: "Recipe saved, but the image could not be downloaded.",
+	overviewEmpty: "No recipes found in folder.",
 };
 
 const fr: LanguageConfig = {
@@ -149,6 +223,29 @@ const fr: LanguageConfig = {
 	dvTime: "Temps",
 	dvRating: "Note",
 	dvImported: "Importé",
+	modalImportTitle: "Importer une recette depuis une URL",
+	modalImportBtn: "Importer",
+	modalExtracting: "Extraction de la recette...",
+	modalInvalidUrl: "Veuillez entrer une URL valide.",
+	modalCancel: "Annuler",
+	modalSave: "Enregistrer",
+	modalSaving: "Enregistrement...",
+	modalScaleTitle: "Adapter la recette",
+	modalCurrentServings: (n) => `Portions actuelles : ${n}`,
+	modalNewServings: "Nouvelles portions...",
+	modalScaleBtn: "Adapter",
+	modalScaling: "Adaptation de la recette...",
+	modalScaleSuccess: (n) => `Recette adaptée à ${n} portions.`,
+	modalFetching: "Chargement de la page...",
+	modalAnalyzing: "Analyse de la recette...",
+	modalDownloadingImage: "Téléchargement de l'image...",
+	modalSavingRecipe: "Enregistrement de la recette...",
+	modalNoApiKey: "Aucune clé API configurée pour le fournisseur sélectionné. Veuillez la configurer dans les paramètres.",
+	modalProtocolError: "Seules les URLs http:// et https:// sont prises en charge.",
+	modalOverwriteWarning: "Une recette avec ce nom existe déjà. Cliquez à nouveau pour écraser.",
+	modalOverwrite: "Écraser",
+	modalImageFailed: "Recette enregistrée, mais l'image n'a pas pu être téléchargée.",
+	overviewEmpty: "Aucune recette trouvée dans le dossier.",
 };
 
 const es: LanguageConfig = {
@@ -185,6 +282,29 @@ const es: LanguageConfig = {
 	dvTime: "Tiempo",
 	dvRating: "Valoración",
 	dvImported: "Importado",
+	modalImportTitle: "Importar receta desde URL",
+	modalImportBtn: "Importar",
+	modalExtracting: "Extrayendo receta...",
+	modalInvalidUrl: "Por favor, introduce una URL válida.",
+	modalCancel: "Cancelar",
+	modalSave: "Guardar",
+	modalSaving: "Guardando...",
+	modalScaleTitle: "Escalar receta",
+	modalCurrentServings: (n) => `Porciones actuales: ${n}`,
+	modalNewServings: "Nuevas porciones...",
+	modalScaleBtn: "Escalar",
+	modalScaling: "Escalando receta...",
+	modalScaleSuccess: (n) => `Receta escalada a ${n} porciones.`,
+	modalFetching: "Cargando página...",
+	modalAnalyzing: "Analizando receta...",
+	modalDownloadingImage: "Descargando imagen...",
+	modalSavingRecipe: "Guardando receta...",
+	modalNoApiKey: "No hay clave API configurada para el proveedor seleccionado. Configúrela en los ajustes.",
+	modalProtocolError: "Solo se admiten URLs http:// y https://.",
+	modalOverwriteWarning: "Ya existe una receta con este nombre. Haz clic de nuevo para sobrescribir.",
+	modalOverwrite: "Sobrescribir",
+	modalImageFailed: "Receta guardada, pero no se pudo descargar la imagen.",
+	overviewEmpty: "No se encontraron recetas en la carpeta.",
 };
 
 const it: LanguageConfig = {
@@ -221,6 +341,29 @@ const it: LanguageConfig = {
 	dvTime: "Tempo",
 	dvRating: "Valutazione",
 	dvImported: "Importato",
+	modalImportTitle: "Importa ricetta da URL",
+	modalImportBtn: "Importa",
+	modalExtracting: "Estrazione ricetta...",
+	modalInvalidUrl: "Inserisci un URL valido.",
+	modalCancel: "Annulla",
+	modalSave: "Salva",
+	modalSaving: "Salvataggio...",
+	modalScaleTitle: "Scala ricetta",
+	modalCurrentServings: (n) => `Porzioni attuali: ${n}`,
+	modalNewServings: "Nuove porzioni...",
+	modalScaleBtn: "Scala",
+	modalScaling: "Scalatura della ricetta...",
+	modalScaleSuccess: (n) => `Ricetta scalata a ${n} porzioni.`,
+	modalFetching: "Caricamento della pagina...",
+	modalAnalyzing: "Analisi della ricetta...",
+	modalDownloadingImage: "Download dell'immagine...",
+	modalSavingRecipe: "Salvataggio della ricetta...",
+	modalNoApiKey: "Nessuna chiave API configurata per il provider selezionato. Configurala nelle impostazioni.",
+	modalProtocolError: "Sono supportati solo URL http:// e https://.",
+	modalOverwriteWarning: "Esiste già una ricetta con questo nome. Clicca di nuovo per sovrascrivere.",
+	modalOverwrite: "Sovrascrivi",
+	modalImageFailed: "Ricetta salvata, ma non è stato possibile scaricare l'immagine.",
+	overviewEmpty: "Nessuna ricetta trovata nella cartella.",
 };
 
 export const LANGUAGES: Record<RecipeLanguage, LanguageConfig> = { de, en, fr, es, it };

@@ -1,8 +1,14 @@
-import { App, Notice, TFile, requestUrl } from "obsidian";
+import { App, TFile, requestUrl } from "obsidian";
 import { RecipeData } from "../types";
-import { AIProvider } from "../providers/base";
+import { AIProvider, isProviderConfigured } from "../providers/base";
 import { VaultRecipeSettings } from "../settings";
 import { getLanguageConfig } from "../languages";
+import { ImageService } from "./image-service";
+import { FM, MAX_PLAINTEXT_CONTENT_CHARS } from "../constants";
+import { sanitizeFileName, ensureFolder, parseJsonFromResponse, createOrUpdateFile } from "../utils";
+
+/** Maximum HTML size to process (500 KB). */
+const MAX_HTML_SIZE = 512_000;
 
 interface JsonLdRecipe {
 	title: string;
@@ -14,15 +20,43 @@ interface JsonLdRecipe {
 }
 
 export class RecipeImporterService {
+	private imageService: ImageService;
+
 	constructor(
 		private app: App,
 		private settings: VaultRecipeSettings,
 		private getChatProvider: () => AIProvider
-	) {}
+	) {
+		this.imageService = new ImageService(app, settings);
+	}
+
+	/** Check whether the currently selected AI provider has an API key configured. */
+	isProviderConfigured(): boolean {
+		return isProviderConfigured(this.settings.defaultProvider, this.settings);
+	}
+
+	/** Check if a recipe file already exists for the given title. */
+	getExistingRecipeFile(title: string): TFile | null {
+		const folder = this.settings.recipeFolder;
+		const filePath = `${folder}/${sanitizeFileName(title)}.md`;
+		const existing = this.app.vault.getAbstractFileByPath(filePath);
+		return existing instanceof TFile ? existing : null;
+	}
 
 	async fetchRecipePage(url: string): Promise<string> {
 		const response = await requestUrl({ url });
-		return response.text;
+
+		// Guard against non-HTML responses (e.g. PDFs, images)
+		const contentType = response.headers["content-type"] || "";
+		if (contentType && !contentType.includes("text/html") && !contentType.includes("text/plain") && !contentType.includes("application/xhtml")) {
+			throw new Error(`Unexpected content type: ${contentType}`);
+		}
+
+		const text = response.text;
+		if (text.length > MAX_HTML_SIZE) {
+			return text.slice(0, MAX_HTML_SIZE);
+		}
+		return text;
 	}
 
 	/**
@@ -104,27 +138,7 @@ export class RecipeImporterService {
 		}
 
 		// Extract image
-		let image = "";
-		if (typeof obj["image"] === "string") {
-			image = obj["image"];
-		} else if (Array.isArray(obj["image"])) {
-			const first = obj["image"][0];
-			if (typeof first === "string") {
-				image = first;
-			} else if (first && typeof first === "object") {
-				image = String(
-					(first as Record<string, unknown>)["url"] || ""
-				);
-			}
-		} else if (
-			obj["image"] &&
-			typeof obj["image"] === "object" &&
-			!Array.isArray(obj["image"])
-		) {
-			image = String(
-				(obj["image"] as Record<string, unknown>)["url"] || ""
-			);
-		}
+		const image = this.extractLdImage(obj["image"]);
 
 		// Calculate total time
 		let totalTime = "";
@@ -156,13 +170,30 @@ export class RecipeImporterService {
 		return {
 			title: String(obj["name"] || ""),
 			ingredients: Array.isArray(obj["recipeIngredient"])
-				? (obj["recipeIngredient"] as unknown[]).map(String)
+				? obj["recipeIngredient"].map(String)
 				: [],
 			steps,
 			totalTime,
 			image,
 			servings,
 		};
+	}
+
+	private extractLdImage(imageData: unknown): string {
+		if (typeof imageData === "string") {
+			return imageData;
+		}
+		if (Array.isArray(imageData)) {
+			const first = imageData[0];
+			if (typeof first === "string") return first;
+			if (first && typeof first === "object") {
+				return String((first as Record<string, unknown>)["url"] || "");
+			}
+		}
+		if (imageData && typeof imageData === "object" && !Array.isArray(imageData)) {
+			return String((imageData as Record<string, unknown>)["url"] || "");
+		}
+		return "";
 	}
 
 	/**
@@ -190,33 +221,6 @@ export class RecipeImporterService {
 		return `${mins} min`;
 	}
 
-	/**
-	 * Stage 2: Extract the best image URL from HTML.
-	 * Priority: og:image > JSON-LD image > filtered <img> tags.
-	 */
-	private extractBestImageUrl(
-		html: string,
-		jsonLdImage: string
-	): string {
-		// 1. og:image
-		const ogMatch = html.match(
-			/<meta\s+(?:[^>]*?)property=["']og:image["'][^>]*?content=["']([^"']+)["']/i
-		);
-		if (ogMatch && ogMatch[1]) return ogMatch[1];
-
-		// Also check reversed attribute order
-		const ogMatchReversed = html.match(
-			/<meta\s+(?:[^>]*?)content=["']([^"']+)["'][^>]*?property=["']og:image["']/i
-		);
-		if (ogMatchReversed && ogMatchReversed[1]) return ogMatchReversed[1];
-
-		// 2. JSON-LD image
-		if (jsonLdImage) return jsonLdImage;
-
-		// 3. No automatic <img> scraping — return empty, fallback left to AI in plaintext mode
-		return "";
-	}
-
 	async extractRecipe(html: string, url: string): Promise<RecipeData> {
 		const lang = getLanguageConfig(this.settings.recipeLanguage);
 
@@ -224,7 +228,7 @@ export class RecipeImporterService {
 		const jsonLd = this.extractJsonLd(html);
 
 		// Stage 2: Extract best image
-		const imageUrl = this.extractBestImageUrl(
+		const imageUrl = this.imageService.extractBestImageUrl(
 			html,
 			jsonLd?.image || ""
 		);
@@ -241,52 +245,37 @@ export class RecipeImporterService {
 				[
 					{
 						role: "user",
-						content: `Here is structured recipe data from a web page:
+						content: `Structured recipe data:
 Title: ${jsonLd.title}
 Servings: ${jsonLd.servings}
-Ingredients:
-${jsonLd.ingredients.map((i) => `- ${i}`).join("\n")}
-Steps:
-${jsonLd.steps.map((s, idx) => `${idx + 1}. ${s}`).join("\n")}
+Ingredients:\n${jsonLd.ingredients.map((i) => `- ${i}`).join("\n")}
+Steps:\n${jsonLd.steps.map((s, idx) => `${idx + 1}. ${s}`).join("\n")}
 Total time: ${timeStr}
 
-Tasks:
-1. ${lang.translateInstruction}
-2. Convert all units to metric (cups→ml/g, oz→g, lbs→kg, °F→°C, tbsp→EL, tsp→TL)
-3. Provide total prep time as "recPreptime" (e.g. "45 min" or "1 h 30 min")
-4. Classify "recDiet": ${lang.dietLabels}
-5. Classify "recCategory": ${lang.categoryLabels}
-6. Classify "recCuisine": e.g. Italian, Asian, Mexican, German, French, Indian, etc. (in ${lang.displayName})
-7. Classify "recDifficulty": ${lang.difficultyLabels}
+${lang.translateInstruction}. Convert non-metric units to metric. Classify: "recDiet" (${lang.dietLabels}), "recCategory" (${lang.categoryLabels}), "recCuisine" (in ${lang.displayName}), "recDifficulty" (${lang.difficultyLabels}).
 
-Return JSON: { "title": "...", "servings": "...", "recPreptime": "...", "recDiet": "...", "recCategory": "...", "recCuisine": "...", "recDifficulty": "...", "ingredients": [...], "steps": [...], "notes": "..." }
-Respond ONLY with valid JSON, no markdown fences.`,
+Return JSON: {"title","servings","recPreptime","recDiet","recCategory","recCuisine","recDifficulty","ingredients":[],"steps":[],"notes":""}
+ONLY valid JSON, no fences.`,
 					},
 				],
 				lang.recipeAssistantSystem
 			);
 
-			const jsonMatch = response.match(/\{[\s\S]*\}/);
-			if (!jsonMatch) {
-				throw new Error(
-					"Failed to extract recipe data from AI response"
-				);
-			}
-			parsed = JSON.parse(jsonMatch[0]);
+			parsed = parseJsonFromResponse(response);
 		} else {
 			// No JSON-LD: fallback to plaintext extraction
-			const textContent = html
-				.replace(/<script[\s\S]*?<\/script>/gi, "")
-				.replace(/<style[\s\S]*?<\/style>/gi, "")
-				.replace(/<[^>]+>/g, " ")
+			// Truncate before regex chain to avoid processing huge HTML
+			const truncatedHtml = html.length > MAX_HTML_SIZE ? html.slice(0, MAX_HTML_SIZE) : html;
+			const textContent = truncatedHtml
+				.replace(/<script[\s\S]*?<\/script>|<style[\s\S]*?<\/style>|<[^>]+>/gi, " ")
 				.replace(/\s+/g, " ")
 				.trim()
-				.slice(0, 12000);
+				.slice(0, MAX_PLAINTEXT_CONTENT_CHARS);
 
 			// Collect candidate image URLs for AI to pick from (only in fallback mode)
 			let imageSection = "";
 			if (!imageUrl) {
-				const imgUrls = this.collectImageUrls(html, url);
+				const imgUrls = this.imageService.collectImageUrls(html, url);
 				if (imgUrls.length > 0) {
 					imageSection = `\n\nHere are image URLs from the page. Pick the one that best matches the recipe (no logos, icons, or ads) and return it as "bestImageUrl". If none fits, return an empty string.\n${imgUrls.map((u, i) => `${i + 1}. ${u}`).join("\n")}`;
 				}
@@ -321,13 +310,18 @@ ${textContent}`,
 				lang.recipeExtractionSystem
 			);
 
-			const jsonMatch = response.match(/\{[\s\S]*\}/);
-			if (!jsonMatch) {
-				throw new Error(
-					"Failed to extract recipe data from AI response"
-				);
-			}
-			parsed = JSON.parse(jsonMatch[0]);
+			parsed = parseJsonFromResponse(response);
+		}
+
+		// Validate critical fields from AI response
+		if (!parsed.title || typeof parsed.title !== "string") {
+			throw new Error("AI response missing required 'title' field");
+		}
+		if (!Array.isArray(parsed.ingredients) || parsed.ingredients.length === 0) {
+			throw new Error("AI response missing or empty 'ingredients' array");
+		}
+		if (!Array.isArray(parsed.steps) || parsed.steps.length === 0) {
+			throw new Error("AI response missing or empty 'steps' array");
 		}
 
 		// If AI found a better image in fallback mode, use it
@@ -336,7 +330,7 @@ ${textContent}`,
 			String(parsed.bestImageUrl || "");
 
 		return {
-			title: String(parsed.title || "Untitled Recipe"),
+			title: String(parsed.title),
 			source: url,
 			servings: String(parsed.servings || ""),
 			recPreptime: String(parsed.recPreptime || ""),
@@ -346,139 +340,31 @@ ${textContent}`,
 			recDifficulty: String(parsed.recDifficulty || ""),
 			dateImported: new Date().toISOString().split("T")[0],
 			recRating: 0,
-			ingredients: Array.isArray(parsed.ingredients)
-				? parsed.ingredients.map(String)
-				: [],
-			steps: Array.isArray(parsed.steps)
-				? parsed.steps.map(String)
-				: [],
+			ingredients: parsed.ingredients.map(String),
+			steps: parsed.steps.map(String),
 			notes: String(parsed.notes || ""),
 			imageUrl: finalImageUrl,
 		};
 	}
 
-	/**
-	 * Collect candidate image URLs from <img> tags, filtering out likely non-recipe images.
-	 */
-	private collectImageUrls(html: string, baseUrl: string): string[] {
-		const imgRegex = /<img\s+[^>]*src=["']([^"']+)["'][^>]*>/gi;
-		const urls: string[] = [];
-		let match: RegExpExecArray | null;
-
-		while ((match = imgRegex.exec(html)) !== null) {
-			let src = match[1];
-			// Skip SVGs, tracking pixels, icons, tiny images
-			if (/\.svg(\?|$)/i.test(src)) continue;
-			if (/\b(pixel|track|beacon|1x1|spacer|blank)\b/i.test(src))
-				continue;
-			if (/\b(icon|logo|avatar|favicon|badge)\b/i.test(src)) continue;
-
-			// Resolve relative URLs
-			try {
-				src = new URL(src, baseUrl).href;
-			} catch {
-				continue;
-			}
-			if (!urls.includes(src)) urls.push(src);
-		}
-
-		// Limit to 10 candidates
-		return urls.slice(0, 10);
-	}
-
-	/**
-	 * Download an image and save it to the vault.
-	 */
-	async downloadImage(
-		imageUrl: string,
-		recipeName: string
-	): Promise<string | null> {
-		if (!imageUrl) return null;
-
-		try {
-			const response = await requestUrl({
-				url: imageUrl,
-				headers: {
-					Referer: imageUrl,
-				},
-			});
-
-			// Determine file extension from URL or content type
-			let ext = "jpg";
-			const urlPath = new URL(imageUrl).pathname;
-			const urlExtMatch = urlPath.match(/\.(\w{3,4})$/);
-			if (urlExtMatch) {
-				const urlExt = urlExtMatch[1].toLowerCase();
-				if (["jpg", "jpeg", "png", "webp", "gif"].includes(urlExt)) {
-					ext = urlExt === "jpeg" ? "jpg" : urlExt;
-				}
-			}
-
-			const folder = this.settings.recipeFolder;
-			const imagesFolder = `${folder}/images`;
-
-			// Create folders if needed
-			if (!this.app.vault.getAbstractFileByPath(folder)) {
-				await this.app.vault.createFolder(folder);
-			}
-			if (!this.app.vault.getAbstractFileByPath(imagesFolder)) {
-				await this.app.vault.createFolder(imagesFolder);
-			}
-
-			const sanitizedName = recipeName
-				.replace(/[\\/:*?"<>|]/g, "-")
-				.replace(/\s+/g, " ")
-				.trim();
-			const imagePath = `${imagesFolder}/${sanitizedName}.${ext}`;
-
-			// Check if file already exists
-			const existing =
-				this.app.vault.getAbstractFileByPath(imagePath);
-			if (existing instanceof TFile) {
-				await this.app.vault.modifyBinary(
-					existing,
-					response.arrayBuffer
-				);
-			} else {
-				await this.app.vault.createBinary(
-					imagePath,
-					response.arrayBuffer
-				);
-			}
-
-			return imagePath;
-		} catch (e) {
-			console.warn("Failed to download recipe image:", e);
-			return null;
-		}
-	}
-
-	async createRecipeNote(recipe: RecipeData): Promise<TFile> {
+	async createRecipeNote(recipe: RecipeData): Promise<{ file: TFile; imageFailed: boolean }> {
 		const lang = getLanguageConfig(this.settings.recipeLanguage);
 		const folder = this.settings.recipeFolder;
 
-		// Create folder if it doesn't exist
-		if (!this.app.vault.getAbstractFileByPath(folder)) {
-			await this.app.vault.createFolder(folder);
-		}
+		await ensureFolder(this.app, folder);
 
-		// Download image
+		// Download image (without mutating the recipe argument)
 		let imagePath: string | null = null;
+		const imageFailed = !!recipe.imageUrl;
 		if (recipe.imageUrl) {
-			imagePath = await this.downloadImage(
+			imagePath = await this.imageService.downloadImage(
 				recipe.imageUrl,
-				recipe.title
+				recipe.title,
+				recipe.source
 			);
-			if (imagePath) {
-				recipe.imagePath = imagePath;
-			}
 		}
 
-		const sanitizedTitle = recipe.title
-			.replace(/[\\/:*?"<>|]/g, "-")
-			.replace(/\s+/g, " ")
-			.trim();
-		const filePath = `${folder}/${sanitizedTitle}.md`;
+		const filePath = `${folder}/${sanitizeFileName(recipe.title)}.md`;
 
 		// Build body
 		let body = "\n";
@@ -505,52 +391,47 @@ ${textContent}`,
 
 		const content = "---\n---\n" + body + "\n";
 
-		// Check if file already exists
-		const existing = this.app.vault.getAbstractFileByPath(filePath);
-		let file: TFile;
-		if (existing instanceof TFile) {
-			await this.app.vault.modify(existing, content);
-			file = existing;
-		} else {
-			file = await this.app.vault.create(filePath, content);
-		}
+		const file = await createOrUpdateFile(this.app, filePath, content);
 
 		// Ensure property types are registered correctly in Obsidian
-		const typeManager = (this.app as Record<string, unknown>)
-			.metadataTypeManager as
-			| { setType: (name: string, type: string) => void }
-			| undefined;
-		if (typeManager?.setType) {
-			typeManager.setType("title", "text");
-			typeManager.setType("source", "text");
-			typeManager.setType("rcp_servings", "text");
-			typeManager.setType("rcp_preptime", "text");
-			typeManager.setType("rcp_diet", "text");
-			typeManager.setType("rcp_category", "text");
-			typeManager.setType("rcp_cuisine", "text");
-			typeManager.setType("rcp_difficulty", "text");
-			typeManager.setType("rcp_image", "text");
-			typeManager.setType("date_imported", "date");
-			typeManager.setType("rcp_rating", "number");
-			typeManager.setType("tags", "tags");
+		try {
+			// metadataTypeManager is an internal Obsidian API not exposed in public typings
+			const appRecord = this.app as App & { metadataTypeManager?: { setType: (name: string, type: string) => void } };
+			const typeManager = appRecord.metadataTypeManager;
+			if (typeManager?.setType) {
+				typeManager.setType(FM.TITLE, "text");
+				typeManager.setType(FM.SOURCE, "text");
+				typeManager.setType(FM.SERVINGS, "text");
+				typeManager.setType(FM.PREPTIME, "text");
+				typeManager.setType(FM.DIET, "text");
+				typeManager.setType(FM.CATEGORY, "text");
+				typeManager.setType(FM.CUISINE, "text");
+				typeManager.setType(FM.DIFFICULTY, "text");
+				typeManager.setType(FM.IMAGE, "text");
+				typeManager.setType(FM.DATE_IMPORTED, "date");
+				typeManager.setType(FM.RATING, "number");
+				typeManager.setType(FM.TAGS, "tags");
+			}
+		} catch {
+			// metadataTypeManager is an internal API — ignore if unavailable
 		}
 
 		// Use Obsidian's processFrontMatter to set properties with correct types
 		await this.app.fileManager.processFrontMatter(file, (fm) => {
-			fm.title = recipe.title;
-			fm.source = recipe.source;
-			fm.rcp_servings = recipe.servings;
-			fm.rcp_preptime = recipe.recPreptime;
-			fm.rcp_diet = recipe.recDiet;
-			fm.rcp_category = recipe.recCategory;
-			fm.rcp_cuisine = recipe.recCuisine;
-			fm.rcp_difficulty = recipe.recDifficulty;
-			fm.rcp_image = recipe.imagePath || "";
-			fm.date_imported = recipe.dateImported;
-			fm.rcp_rating = recipe.recRating;
-			fm.tags = [lang.tag];
+			fm[FM.TITLE] = recipe.title;
+			fm[FM.SOURCE] = recipe.source;
+			fm[FM.SERVINGS] = recipe.servings;
+			fm[FM.PREPTIME] = recipe.recPreptime;
+			fm[FM.DIET] = recipe.recDiet;
+			fm[FM.CATEGORY] = recipe.recCategory;
+			fm[FM.CUISINE] = recipe.recCuisine;
+			fm[FM.DIFFICULTY] = recipe.recDifficulty;
+			fm[FM.IMAGE] = imagePath || "";
+			fm[FM.DATE_IMPORTED] = recipe.dateImported;
+			fm[FM.RATING] = recipe.recRating;
+			fm[FM.TAGS] = [lang.tag];
 		});
 
-		return file;
+		return { file, imageFailed: imageFailed && !imagePath };
 	}
 }

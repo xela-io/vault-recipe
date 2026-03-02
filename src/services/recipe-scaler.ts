@@ -2,20 +2,34 @@ import { App, TFile } from "obsidian";
 import { AIProvider } from "../providers/base";
 import { VaultRecipeSettings } from "../settings";
 import { getLanguageConfig } from "../languages";
+import { FM } from "../constants";
 
 export class RecipeScalerService {
+	private headingPatternCache: { lang: string; pattern: RegExp } | null = null;
+
 	constructor(
 		private app: App,
 		private settings: VaultRecipeSettings,
 		private getChatProvider: () => AIProvider
 	) {}
 
+	private getHeadingPattern(heading: string): RegExp {
+		if (this.headingPatternCache?.lang === heading) {
+			return this.headingPatternCache.pattern;
+		}
+		const pattern = new RegExp(
+			`(## ${heading}\\s*\\n)([\\s\\S]*?)(?=\\n## |\\n$|$)`
+		);
+		this.headingPatternCache = { lang: heading, pattern };
+		return pattern;
+	}
+
 	/**
 	 * Read the servings value from frontmatter.
 	 */
 	getServings(file: TFile): number | null {
 		const cache = this.app.metadataCache.getFileCache(file);
-		const servings = cache?.frontmatter?.rcp_servings;
+		const servings = cache?.frontmatter?.[FM.SERVINGS];
 		if (typeof servings === "number") return servings;
 		if (typeof servings === "string") {
 			const parsed = parseInt(servings, 10);
@@ -35,7 +49,7 @@ export class RecipeScalerService {
 		const currentServings = this.getServings(file);
 		if (!currentServings) {
 			throw new Error(
-				"No servings found in frontmatter. The note needs a 'rcp_servings' field."
+				"No servings found in frontmatter. The note needs a 'servings' field."
 			);
 		}
 
@@ -43,9 +57,7 @@ export class RecipeScalerService {
 
 		// Extract ingredients section
 		const lang = getLanguageConfig(this.settings.recipeLanguage);
-		const headingPattern = new RegExp(
-			`(## ${lang.ingredientsHeading}\\s*\\n)([\\s\\S]*?)(?=\\n## |\\n$|$)`
-		);
+		const headingPattern = this.getHeadingPattern(lang.ingredientsHeading);
 		const sectionMatch = content.match(headingPattern);
 		if (!sectionMatch) {
 			throw new Error(
@@ -64,22 +76,20 @@ export class RecipeScalerService {
 					content: lang.scalerUser(currentServings, newServings, ingredientsText),
 				},
 			],
-			lang.scalerSystem
+			lang.scalerSystem,
+			1024
 		);
 
-		// Replace ingredients section
+		// Replace ingredients section and update servings in one write
 		const scaledTrimmed = scaled.trim();
 		content = content.replace(
 			headingPattern,
 			`$1${scaledTrimmed}\n`
 		);
 
-		// Update servings in frontmatter
-		content = content.replace(
-			/^(rcp_servings:\s*).+$/m,
-			`$1${newServings}`
-		);
-
 		await this.app.vault.modify(file, content);
+		await this.app.fileManager.processFrontMatter(file, (fm) => {
+			fm[FM.SERVINGS] = newServings;
+		});
 	}
 }

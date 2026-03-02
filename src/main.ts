@@ -1,17 +1,20 @@
-import { Notice, Plugin, TFile } from "obsidian";
+import { Notice, Plugin } from "obsidian";
 import { VaultRecipeSettings, DEFAULT_SETTINGS, VaultRecipeSettingTab } from "./settings";
-import { AIProviderType } from "./types";
 import { createProvider, AIProvider } from "./providers/base";
 import { RecipeImporterService } from "./services/recipe-importer";
 import { RecipeOverviewService } from "./services/recipe-overview";
 import { RecipeScalerService } from "./services/recipe-scaler";
 import { RecipeModal } from "./ui/recipe-modal";
 import { ScaleModal } from "./ui/scale-modal";
+import { getLanguageConfig } from "./languages";
+import { formatError } from "./utils";
 
 export default class VaultRecipePlugin extends Plugin {
-	settings: VaultRecipeSettings;
-	private recipeImporterService: RecipeImporterService;
-	private recipeScalerService: RecipeScalerService;
+	settings!: VaultRecipeSettings;
+	private recipeImporterService!: RecipeImporterService;
+	private recipeScalerService!: RecipeScalerService;
+	private recipeOverviewService!: RecipeOverviewService;
+	private cachedProvider: AIProvider | null = null;
 
 	async onload(): Promise<void> {
 		await this.loadSettings();
@@ -28,15 +31,22 @@ export default class VaultRecipePlugin extends Plugin {
 			() => this.getChatProvider()
 		);
 
+		this.recipeOverviewService = new RecipeOverviewService(
+			this.app,
+			this.settings
+		);
+
 		this.addSettingTab(new VaultRecipeSettingTab(this.app, this));
 
 		this.addCommand({
 			id: "vault-recipe-import",
 			name: "Import recipe from URL",
 			callback: () => {
+				const lang = getLanguageConfig(this.settings.recipeLanguage);
 				new RecipeModal(
 					this.app,
-					this.recipeImporterService
+					this.recipeImporterService,
+					lang
 				).open();
 			},
 		});
@@ -46,18 +56,17 @@ export default class VaultRecipePlugin extends Plugin {
 			name: "Generate recipe overview",
 			callback: async () => {
 				try {
+					const lang = getLanguageConfig(this.settings.recipeLanguage);
 					new Notice("Generating recipe overview...");
-					const overviewService = new RecipeOverviewService(
-						this.app,
-						this.settings
-					);
-					const file = await overviewService.generateOverview();
-					new Notice(`Recipe overview updated: ${file.path}`);
+					const { file, recipeCount } = await this.recipeOverviewService.generateOverview();
+					if (recipeCount === 0) {
+						new Notice(lang.overviewEmpty);
+					} else {
+						new Notice(`Recipe overview updated: ${file.path}`);
+					}
 					await this.app.workspace.openLinkText(file.path, "", false);
 				} catch (e) {
-					new Notice(
-						`Error: ${e instanceof Error ? e.message : String(e)}`
-					);
+					new Notice(`Error: ${formatError(e)}`);
 				}
 			},
 		});
@@ -81,32 +90,27 @@ export default class VaultRecipePlugin extends Plugin {
 					return;
 				}
 
+				const lang = getLanguageConfig(this.settings.recipeLanguage);
 				new ScaleModal(
 					this.app,
 					currentServings,
 					async (newServings) => {
-						try {
-							new Notice("Scaling recipe...");
-							await this.recipeScalerService.scaleRecipe(
-								file,
-								newServings
-							);
-							new Notice(
-								`Recipe scaled to ${newServings} servings.`
-							);
-						} catch (e) {
-							new Notice(
-								`Error: ${e instanceof Error ? e.message : String(e)}`
-							);
-						}
-					}
+						await this.recipeScalerService.scaleRecipe(
+							file,
+							newServings
+						);
+					},
+					lang
 				).open();
 			},
 		});
 	}
 
 	private getChatProvider(): AIProvider {
-		return createProvider(this.settings.defaultProvider, this.settings);
+		if (!this.cachedProvider) {
+			this.cachedProvider = createProvider(this.settings.defaultProvider, this.settings);
+		}
+		return this.cachedProvider;
 	}
 
 	async loadSettings(): Promise<void> {
@@ -119,5 +123,6 @@ export default class VaultRecipePlugin extends Plugin {
 
 	async saveSettings(): Promise<void> {
 		await this.saveData(this.settings);
+		this.cachedProvider = null;
 	}
 }

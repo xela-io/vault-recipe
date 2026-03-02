@@ -3,7 +3,6 @@ import { ChatMessage } from "../types";
 import { VaultRecipeSettings } from "../settings";
 
 export class OpenAIProvider implements AIProvider {
-	readonly supportsEmbeddings = true;
 	private apiKey: string;
 	private chatModel: string;
 
@@ -14,52 +13,43 @@ export class OpenAIProvider implements AIProvider {
 
 	async chatCompletion(
 		messages: ChatMessage[],
-		systemPrompt?: string
+		systemPrompt?: string,
+		maxTokens?: number
 	): Promise<string> {
-		if (!this.apiKey) throw new Error("OpenAI API key not configured");
-
 		const msgs = systemPrompt
 			? [{ role: "system" as const, content: systemPrompt }, ...messages]
 			: messages;
 
+		const body: Record<string, unknown> = {
+			model: this.chatModel,
+			messages: msgs,
+			temperature: 0.1,
+		};
+		if (maxTokens) {
+			body.max_tokens = maxTokens;
+		}
+
 		const response = await requestWithRetry(
 			"https://api.openai.com/v1/chat/completions",
 			{
-				url: "https://api.openai.com/v1/chat/completions",
 				method: "POST",
 				headers: {
 					Authorization: `Bearer ${this.apiKey}`,
 					"Content-Type": "application/json",
 				},
-				body: JSON.stringify({
-					model: this.chatModel,
-					messages: msgs,
-				}),
+				body: JSON.stringify(body),
 			}
 		);
 
-		return response.json.choices[0].message.content;
+		const choices = response.json.choices;
+		if (
+			!Array.isArray(choices) ||
+			choices.length === 0 ||
+			!choices[0].message?.content
+		) {
+			throw new Error("Unexpected OpenAI response format");
+		}
+		return choices[0].message.content;
 	}
 
-	async generateEmbedding(text: string): Promise<number[]> {
-		if (!this.apiKey) throw new Error("OpenAI API key not configured");
-
-		const response = await requestWithRetry(
-			"https://api.openai.com/v1/embeddings",
-			{
-				url: "https://api.openai.com/v1/embeddings",
-				method: "POST",
-				headers: {
-					Authorization: `Bearer ${this.apiKey}`,
-					"Content-Type": "application/json",
-				},
-				body: JSON.stringify({
-					model: "text-embedding-3-small",
-					input: text,
-				}),
-			}
-		);
-
-		return response.json.data[0].embedding;
-	}
 }
