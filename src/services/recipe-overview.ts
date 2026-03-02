@@ -71,13 +71,13 @@ export class RecipeOverviewService {
 			recipes.push({
 				fileName: child.basename,
 				title: String(fm.title || child.basename),
-				servings: String(fm.servings || ""),
-				recPreptime: String(fm.rec_preptime || ""),
-				recDiet: String(fm.rec_diet || ""),
-				recCategory: String(fm.rec_category || ""),
-				recCuisine: String(fm.rec_cuisine || ""),
-				recDifficulty: String(fm.rec_difficulty || ""),
-				recRating: Number(fm.rec_rating ?? 0),
+				servings: String(fm.rcp_servings || ""),
+				recPreptime: String(fm.rcp_preptime || ""),
+				recDiet: String(fm.rcp_diet || ""),
+				recCategory: String(fm.rcp_category || ""),
+				recCuisine: String(fm.rcp_cuisine || ""),
+				recDifficulty: String(fm.rcp_difficulty || ""),
+				recRating: Number(fm.rcp_rating ?? 0),
 				dateImported: String(fm.date_imported || ""),
 			});
 		}
@@ -103,13 +103,13 @@ export class RecipeOverviewService {
 		);
 		sections.push("```dataview");
 		sections.push("TABLE");
-		sections.push(`  rec_category AS "${lang.dvCategory}",`);
-		sections.push(`  rec_cuisine AS "${lang.dvCuisine}",`);
-		sections.push(`  rec_difficulty AS "${lang.dvDifficulty}",`);
-		sections.push(`  rec_diet AS "${lang.dvDiet}",`);
-		sections.push(`  servings AS "${lang.dvServings}",`);
-		sections.push(`  rec_preptime AS "${lang.dvTime}",`);
-		sections.push(`  rec_rating AS "${lang.dvRating}",`);
+		sections.push(`  rcp_category AS "${lang.dvCategory}",`);
+		sections.push(`  rcp_cuisine AS "${lang.dvCuisine}",`);
+		sections.push(`  rcp_difficulty AS "${lang.dvDifficulty}",`);
+		sections.push(`  rcp_diet AS "${lang.dvDiet}",`);
+		sections.push(`  rcp_servings AS "${lang.dvServings}",`);
+		sections.push(`  rcp_preptime AS "${lang.dvTime}",`);
+		sections.push(`  rcp_rating AS "${lang.dvRating}",`);
 		sections.push(`  date_imported AS "${lang.dvImported}"`);
 		sections.push(`FROM "${this.settings.recipeFolder}"`);
 		sections.push(`WHERE contains(tags, "${lang.tag}")`);
@@ -123,9 +123,9 @@ export class RecipeOverviewService {
 		const mainCourseLabel = lang.categoryLabels.split("/")[1] || "Main Course";
 		sections.push(`### ${lang.overviewMainCourses}\n`);
 		sections.push("```dataview");
-		sections.push(`TABLE rec_cuisine AS "${lang.dvCuisine}", rec_difficulty AS "${lang.dvDifficulty}", rec_preptime AS "${lang.dvTime}"`);
+		sections.push(`TABLE rcp_cuisine AS "${lang.dvCuisine}", rcp_difficulty AS "${lang.dvDifficulty}", rcp_preptime AS "${lang.dvTime}"`);
 		sections.push(`FROM "${this.settings.recipeFolder}"`);
-		sections.push(`WHERE rec_category = "${mainCourseLabel}"`);
+		sections.push(`WHERE rcp_category = "${mainCourseLabel}"`);
 		sections.push("SORT title ASC");
 		sections.push("```\n");
 
@@ -133,9 +133,9 @@ export class RecipeOverviewService {
 		const dietParts = lang.dietLabels.split("/");
 		sections.push(`### ${lang.overviewVegetarian}\n`);
 		sections.push("```dataview");
-		sections.push(`TABLE rec_category AS "${lang.dvCategory}", rec_cuisine AS "${lang.dvCuisine}", rec_preptime AS "${lang.dvTime}"`);
+		sections.push(`TABLE rcp_category AS "${lang.dvCategory}", rcp_cuisine AS "${lang.dvCuisine}", rcp_preptime AS "${lang.dvTime}"`);
 		sections.push(`FROM "${this.settings.recipeFolder}"`);
-		sections.push(`WHERE rec_diet = "${dietParts[1] || "vegetarian"}" OR rec_diet = "${dietParts[0] || "vegan"}"`);
+		sections.push(`WHERE rcp_diet = "${dietParts[1] || "vegetarian"}" OR rcp_diet = "${dietParts[0] || "vegan"}"`);
 		sections.push("SORT title ASC");
 		sections.push("```\n");
 
@@ -143,9 +143,9 @@ export class RecipeOverviewService {
 		const easyLabel = lang.difficultyLabels.split("/")[0] || "easy";
 		sections.push(`### ${lang.overviewEasy}\n`);
 		sections.push("```dataview");
-		sections.push(`TABLE rec_category AS "${lang.dvCategory}", rec_cuisine AS "${lang.dvCuisine}", rec_preptime AS "${lang.dvTime}"`);
+		sections.push(`TABLE rcp_category AS "${lang.dvCategory}", rcp_cuisine AS "${lang.dvCuisine}", rcp_preptime AS "${lang.dvTime}"`);
 		sections.push(`FROM "${this.settings.recipeFolder}"`);
-		sections.push(`WHERE rec_difficulty = "${easyLabel}"`);
+		sections.push(`WHERE rcp_difficulty = "${easyLabel}"`);
 		sections.push("SORT title ASC");
 		sections.push("```\n");
 

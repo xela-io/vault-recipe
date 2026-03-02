@@ -15,7 +15,7 @@ export class RecipeScalerService {
 	 */
 	getServings(file: TFile): number | null {
 		const cache = this.app.metadataCache.getFileCache(file);
-		const servings = cache?.frontmatter?.servings;
+		const servings = cache?.frontmatter?.rcp_servings;
 		if (typeof servings === "number") return servings;
 		if (typeof servings === "string") {
 			const parsed = parseInt(servings, 10);
@@ -35,7 +35,7 @@ export class RecipeScalerService {
 		const currentServings = this.getServings(file);
 		if (!currentServings) {
 			throw new Error(
-				"No servings found in frontmatter. The note needs a 'servings' field."
+				"No servings found in frontmatter. The note needs a 'rcp_servings' field."
 			);
 		}
 
@@ -76,7 +76,7 @@ export class RecipeScalerService {
 
 		// Update servings in frontmatter
 		content = content.replace(
-			/^(servings:\s*).+$/m,
+			/^(rcp_servings:\s*).+$/m,
 			`$1${newServings}`
 		);
 

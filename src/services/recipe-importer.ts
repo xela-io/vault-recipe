@@ -480,25 +480,6 @@ ${textContent}`,
 			.trim();
 		const filePath = `${folder}/${sanitizedTitle}.md`;
 
-		// Build frontmatter
-		const frontmatter = [
-			"---",
-			`title: "${recipe.title.replace(/"/g, '\\"')}"`,
-			`source: "${recipe.source}"`,
-			`servings: "${recipe.servings}"`,
-			`rec_preptime: "${recipe.recPreptime}"`,
-			`rec_diet: "${recipe.recDiet}"`,
-			`rec_category: "${recipe.recCategory}"`,
-			`rec_cuisine: "${recipe.recCuisine}"`,
-			`rec_difficulty: "${recipe.recDifficulty}"`,
-			`rec_image: "${recipe.imagePath || ""}"`,
-			`date_imported: "${recipe.dateImported}"`,
-			`rec_rating: ${recipe.recRating}`,
-			"tags:",
-			`  - ${lang.tag}`,
-			"---",
-		].join("\n");
-
 		// Build body
 		let body = "\n";
 
@@ -522,15 +503,54 @@ ${textContent}`,
 			body += `\n\n## ${lang.notesHeading}\n\n${recipe.notes}`;
 		}
 
-		const content = frontmatter + "\n" + body + "\n";
+		const content = "---\n---\n" + body + "\n";
 
 		// Check if file already exists
 		const existing = this.app.vault.getAbstractFileByPath(filePath);
+		let file: TFile;
 		if (existing instanceof TFile) {
 			await this.app.vault.modify(existing, content);
-			return existing;
+			file = existing;
+		} else {
+			file = await this.app.vault.create(filePath, content);
 		}
 
-		return await this.app.vault.create(filePath, content);
+		// Ensure property types are registered correctly in Obsidian
+		const typeManager = (this.app as Record<string, unknown>)
+			.metadataTypeManager as
+			| { setType: (name: string, type: string) => void }
+			| undefined;
+		if (typeManager?.setType) {
+			typeManager.setType("title", "text");
+			typeManager.setType("source", "text");
+			typeManager.setType("rcp_servings", "text");
+			typeManager.setType("rcp_preptime", "text");
+			typeManager.setType("rcp_diet", "text");
+			typeManager.setType("rcp_category", "text");
+			typeManager.setType("rcp_cuisine", "text");
+			typeManager.setType("rcp_difficulty", "text");
+			typeManager.setType("rcp_image", "text");
+			typeManager.setType("date_imported", "date");
+			typeManager.setType("rcp_rating", "number");
+			typeManager.setType("tags", "tags");
+		}
+
+		// Use Obsidian's processFrontMatter to set properties with correct types
+		await this.app.fileManager.processFrontMatter(file, (fm) => {
+			fm.title = recipe.title;
+			fm.source = recipe.source;
+			fm.rcp_servings = recipe.servings;
+			fm.rcp_preptime = recipe.recPreptime;
+			fm.rcp_diet = recipe.recDiet;
+			fm.rcp_category = recipe.recCategory;
+			fm.rcp_cuisine = recipe.recCuisine;
+			fm.rcp_difficulty = recipe.recDifficulty;
+			fm.rcp_image = recipe.imagePath || "";
+			fm.date_imported = recipe.dateImported;
+			fm.rcp_rating = recipe.recRating;
+			fm.tags = [lang.tag];
+		});
+
+		return file;
 	}
 }
