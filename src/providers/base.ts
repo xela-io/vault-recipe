@@ -62,8 +62,9 @@ export async function fetchAnthropicModels(apiKey: string): Promise<string[]> {
 
 export async function fetchGoogleModels(apiKey: string): Promise<string[]> {
 	const response = await requestUrl({
-		url: `https://generativelanguage.googleapis.com/v1beta/models?key=${apiKey}&pageSize=100`,
+		url: `https://generativelanguage.googleapis.com/v1beta/models?pageSize=100`,
 		method: "GET",
+		headers: { "x-goog-api-key": apiKey },
 	});
 	return (
 		response.json.models as {

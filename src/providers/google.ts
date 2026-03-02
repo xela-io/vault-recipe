@@ -56,12 +56,15 @@ export class GoogleProvider implements AIProvider {
 			});
 		}
 
-		const url = `https://generativelanguage.googleapis.com/v1beta/models/${this.chatModel}:generateContent?key=${this.apiKey}`;
+		const url = `https://generativelanguage.googleapis.com/v1beta/models/${this.chatModel}:generateContent`;
 
 		const response = await requestWithRetry(url, {
 			url,
 			method: "POST",
-			headers: { "Content-Type": "application/json" },
+			headers: {
+				"Content-Type": "application/json",
+				"x-goog-api-key": this.apiKey,
+			},
 			body: JSON.stringify({ contents: geminiContents }),
 		});
 
@@ -79,12 +82,15 @@ export class GoogleProvider implements AIProvider {
 	async generateEmbedding(text: string): Promise<number[]> {
 		if (!this.apiKey) throw new Error("Google API key not configured");
 
-		const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-embedding-001:embedContent?key=${this.apiKey}`;
+		const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-embedding-001:embedContent`;
 
 		const response = await requestWithRetry(url, {
 			url,
 			method: "POST",
-			headers: { "Content-Type": "application/json" },
+			headers: {
+				"Content-Type": "application/json",
+				"x-goog-api-key": this.apiKey,
+			},
 			body: JSON.stringify({
 				content: { parts: [{ text }] },
 			}),
