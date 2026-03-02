@@ -2,6 +2,7 @@ import { Notice, Plugin, TFile } from "obsidian";
 import { VaultRecipeSettings, DEFAULT_SETTINGS, VaultRecipeSettingTab } from "./settings";
 import { AIProviderType } from "./types";
 import { createProvider, AIProvider } from "./providers/base";
+import { getLanguageConfig } from "./languages";
 import { RecipeImporterService } from "./services/recipe-importer";
 import { ShoppingListService } from "./services/shopping-list";
 import { RecipeOverviewService } from "./services/recipe-overview";
@@ -33,6 +34,7 @@ export default class VaultRecipePlugin extends Plugin {
 
 		this.recipeScalerService = new RecipeScalerService(
 			this.app,
+			this.settings,
 			() => this.getChatProvider()
 		);
 
@@ -67,8 +69,9 @@ export default class VaultRecipePlugin extends Plugin {
 						);
 
 					if (entry.ingredients.length === 0) {
+						const lang = getLanguageConfig(this.settings.recipeLanguage);
 						new Notice(
-							'No ingredients found. The note needs a "## Zutaten" section.'
+							`No ingredients found. The note needs a "## ${lang.ingredientsHeading}" section.`
 						);
 						return;
 					}

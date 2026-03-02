@@ -1,5 +1,6 @@
 import { App, TFile, TFolder } from "obsidian";
 import { VaultRecipeSettings } from "../settings";
+import { getLanguageConfig } from "../languages";
 
 interface RecipeMeta {
 	fileName: string;
@@ -43,13 +44,14 @@ export class RecipeOverviewService {
 	}
 
 	private collectRecipes(): RecipeMeta[] {
+		const lang = getLanguageConfig(this.settings.recipeLanguage);
 		const folder = this.app.vault.getAbstractFileByPath(
 			this.settings.recipeFolder
 		);
 		if (!folder || !(folder instanceof TFolder)) return [];
 
 		const recipes: RecipeMeta[] = [];
-		const overviewName = this.settings.overviewFileName || "Rezept-Übersicht";
+		const overviewName = this.settings.overviewFileName || lang.overviewTitle;
 
 		for (const child of folder.children) {
 			if (!(child instanceof TFile) || child.extension !== "md") continue;
@@ -57,12 +59,12 @@ export class RecipeOverviewService {
 
 			const cache = this.app.metadataCache.getFileCache(child);
 			const fm = cache?.frontmatter;
-			if (!fm || !fm.tags?.includes("rezept")) {
+			if (!fm || !fm.tags?.includes(lang.tag)) {
 				// Also check tags array format
 				const hasTags =
 					fm &&
-					(fm.tags === "rezept" ||
-						(Array.isArray(fm.tags) && fm.tags.includes("rezept")));
+					(fm.tags === lang.tag ||
+						(Array.isArray(fm.tags) && fm.tags.includes(lang.tag)));
 				if (!hasTags) continue;
 			}
 
@@ -85,72 +87,80 @@ export class RecipeOverviewService {
 	}
 
 	private buildOverviewContent(recipes: RecipeMeta[]): string {
+		const lang = getLanguageConfig(this.settings.recipeLanguage);
 		const sections: string[] = [];
 
 		// Header
-		sections.push("# Rezept-Übersicht\n");
+		sections.push(`# ${lang.overviewTitle}\n`);
 		sections.push(
-			`> Automatisch generiert. ${recipes.length} Rezepte gefunden.\n`
+			`> ${lang.overviewGenerated(recipes.length)}\n`
 		);
 
 		// Dataview section
-		sections.push("## Alle Rezepte (Dataview)\n");
+		sections.push(`## ${lang.overviewAllRecipes}\n`);
 		sections.push(
-			"> Benötigt das [Dataview](https://github.com/blacksmithgu/obsidian-dataview)-Plugin.\n"
+			`> ${lang.overviewDataviewNote}\n`
 		);
 		sections.push("```dataview");
 		sections.push("TABLE");
-		sections.push('  rec_category AS "Kategorie",');
-		sections.push('  rec_cuisine AS "Küche",');
-		sections.push('  rec_difficulty AS "Schwierigkeit",');
-		sections.push('  rec_diet AS "Ernährung",');
-		sections.push('  servings AS "Portionen",');
-		sections.push('  rec_preptime AS "Zeit",');
-		sections.push('  rec_rating AS "Bewertung",');
-		sections.push('  date_imported AS "Importiert"');
+		sections.push(`  rec_category AS "${lang.dvCategory}",`);
+		sections.push(`  rec_cuisine AS "${lang.dvCuisine}",`);
+		sections.push(`  rec_difficulty AS "${lang.dvDifficulty}",`);
+		sections.push(`  rec_diet AS "${lang.dvDiet}",`);
+		sections.push(`  servings AS "${lang.dvServings}",`);
+		sections.push(`  rec_preptime AS "${lang.dvTime}",`);
+		sections.push(`  rec_rating AS "${lang.dvRating}",`);
+		sections.push(`  date_imported AS "${lang.dvImported}"`);
 		sections.push(`FROM "${this.settings.recipeFolder}"`);
-		sections.push("WHERE contains(tags, \"rezept\")");
+		sections.push(`WHERE contains(tags, "${lang.tag}")`);
 		sections.push("SORT title ASC");
 		sections.push("```\n");
 
 		// Filter examples
-		sections.push("## Filterbeispiele\n");
+		sections.push(`## ${lang.overviewFilterExamples}\n`);
 
-		sections.push("### Hauptgerichte\n");
+		// Main courses filter — use first "main course" label from categoryLabels
+		const mainCourseLabel = lang.categoryLabels.split("/")[1] || "Main Course";
+		sections.push(`### ${lang.overviewMainCourses}\n`);
 		sections.push("```dataview");
-		sections.push("TABLE rec_cuisine AS \"Küche\", rec_difficulty AS \"Schwierigkeit\", rec_preptime AS \"Zeit\"");
+		sections.push(`TABLE rec_cuisine AS "${lang.dvCuisine}", rec_difficulty AS "${lang.dvDifficulty}", rec_preptime AS "${lang.dvTime}"`);
 		sections.push(`FROM "${this.settings.recipeFolder}"`);
-		sections.push("WHERE rec_category = \"Hauptgericht\"");
+		sections.push(`WHERE rec_category = "${mainCourseLabel}"`);
 		sections.push("SORT title ASC");
 		sections.push("```\n");
 
-		sections.push("### Vegetarische Rezepte\n");
+		// Vegetarian filter — use first two diet labels (vegan/vegetarian)
+		const dietParts = lang.dietLabels.split("/");
+		sections.push(`### ${lang.overviewVegetarian}\n`);
 		sections.push("```dataview");
-		sections.push("TABLE rec_category AS \"Kategorie\", rec_cuisine AS \"Küche\", rec_preptime AS \"Zeit\"");
+		sections.push(`TABLE rec_category AS "${lang.dvCategory}", rec_cuisine AS "${lang.dvCuisine}", rec_preptime AS "${lang.dvTime}"`);
 		sections.push(`FROM "${this.settings.recipeFolder}"`);
-		sections.push("WHERE rec_diet = \"vegetarisch\" OR rec_diet = \"vegan\"");
+		sections.push(`WHERE rec_diet = "${dietParts[1] || "vegetarian"}" OR rec_diet = "${dietParts[0] || "vegan"}"`);
 		sections.push("SORT title ASC");
 		sections.push("```\n");
 
-		sections.push("### Einfache Rezepte\n");
+		// Easy filter — use first difficulty label
+		const easyLabel = lang.difficultyLabels.split("/")[0] || "easy";
+		sections.push(`### ${lang.overviewEasy}\n`);
 		sections.push("```dataview");
-		sections.push("TABLE rec_category AS \"Kategorie\", rec_cuisine AS \"Küche\", rec_preptime AS \"Zeit\"");
+		sections.push(`TABLE rec_category AS "${lang.dvCategory}", rec_cuisine AS "${lang.dvCuisine}", rec_preptime AS "${lang.dvTime}"`);
 		sections.push(`FROM "${this.settings.recipeFolder}"`);
-		sections.push("WHERE rec_difficulty = \"einfach\"");
+		sections.push(`WHERE rec_difficulty = "${easyLabel}"`);
 		sections.push("SORT title ASC");
 		sections.push("```\n");
 
 		// Static table
-		sections.push("## Statische Übersicht\n");
+		const headers = lang.overviewTableHeaders;
+		sections.push(`## ${lang.overviewStaticTitle}\n`);
 		sections.push(
-			"> Fallback für Nutzer ohne Dataview-Plugin. Wird bei jeder Generierung aktualisiert.\n"
+			`> ${lang.overviewStaticNote}\n`
 		);
 
 		sections.push(
-			"| Rezept | Kategorie | Küche | Schwierigkeit | Ernährung | Portionen | Zeit | Bewertung | Importiert |"
+			`| ${headers.join(" | ")} |`
 		);
 		sections.push(
-			"|--------|-----------|-------|---------------|-----------|-----------|------|-----------|------------|"
+			`|${headers.map(() => "--------").join("|")}|`
 		);
 
 		for (const r of recipes) {

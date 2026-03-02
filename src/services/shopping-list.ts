@@ -1,6 +1,7 @@
 import { App, TFile } from "obsidian";
 import { AIProvider } from "../providers/base";
 import { VaultRecipeSettings } from "../settings";
+import { getLanguageConfig } from "../languages";
 
 export class ShoppingListService {
 	constructor(
@@ -28,9 +29,10 @@ export class ShoppingListService {
 			}
 		}
 
-		// Extract ingredients section (between ## Zutaten and next ##)
+		// Extract ingredients section (between ## <heading> and next ##)
+		const lang = getLanguageConfig(this.settings.recipeLanguage);
 		const sectionMatch = content.match(
-			/## Zutaten\s*\n([\s\S]*?)(?=\n## |\n$|$)/
+			new RegExp(`## ${lang.ingredientsHeading}\\s*\\n([\\s\\S]*?)(?=\\n## |\\n$|$)`)
 		);
 		if (!sectionMatch) {
 			return { title, ingredients: [] };
@@ -50,6 +52,7 @@ export class ShoppingListService {
 	 * List all recipe notes in the recipeFolder that have a ## Zutaten section.
 	 */
 	listRecipeNotes(): TFile[] {
+		const lang = getLanguageConfig(this.settings.recipeLanguage);
 		const folder = this.settings.recipeFolder;
 		return this.app.vault
 			.getMarkdownFiles()
@@ -58,7 +61,7 @@ export class ShoppingListService {
 				const cache = this.app.metadataCache.getFileCache(file);
 				if (!cache?.headings) return false;
 				return cache.headings.some(
-					(h) => h.level === 2 && h.heading === "Zutaten"
+					(h) => h.level === 2 && h.heading === lang.ingredientsHeading
 				);
 			})
 			.sort((a, b) => a.basename.localeCompare(b.basename));
@@ -79,25 +82,17 @@ export class ShoppingListService {
 			)
 			.join("\n\n");
 
+		const lang = getLanguageConfig(this.settings.recipeLanguage);
 		const provider = this.getChatProvider();
 
 		const merged = await provider.chatCompletion(
 			[
 				{
 					role: "user",
-					content: `Hier sind Zutatenlisten aus mehreren Rezepten:\n\n${allIngredients}\n\nBitte erstelle eine zusammengeführte Einkaufsliste.`,
+					content: lang.shoppingListUser(allIngredients),
 				},
 			],
-			`Du bist ein Einkaufslisten-Assistent. Erstelle aus den gegebenen Zutatenlisten eine zusammengeführte Einkaufsliste.
-
-Regeln:
-1. Mengen zusammenrechnen (z.B. 2× 200g Butter → 400g Butter)
-2. Ähnliche Zutaten erkennen und zusammenfassen (z.B. Sahne/Schlagsahne)
-3. Standardzutaten entfernen: Salz, Pfeffer, Wasser, Öl, Zucker (Basics die jeder hat)
-4. Nach Supermarkt-Kategorie sortieren: Obst & Gemüse, Milchprodukte, Fleisch & Fisch, Trockenwaren, Gewürze, Sonstiges
-5. Jeder Eintrag als Markdown-Checkbox: - [ ] Menge Zutat
-
-Ausgabe NUR die Checkboxen-Liste, gruppiert nach Kategorie mit Kategorie als Bold-Text (**Kategorie**). Keine Erklärungen, kein Markdown-Codeblock.`
+			lang.shoppingListSystem
 		);
 
 		const heading = `### ${titles.join(", ")}`;

@@ -1,9 +1,12 @@
 import { App, TFile } from "obsidian";
 import { AIProvider } from "../providers/base";
+import { VaultRecipeSettings } from "../settings";
+import { getLanguageConfig } from "../languages";
 
 export class RecipeScalerService {
 	constructor(
 		private app: App,
+		private settings: VaultRecipeSettings,
 		private getChatProvider: () => AIProvider
 	) {}
 
@@ -39,12 +42,14 @@ export class RecipeScalerService {
 		if (currentServings === newServings) return;
 
 		// Extract ingredients section
-		const sectionMatch = content.match(
-			/(## Zutaten\s*\n)([\s\S]*?)(?=\n## |\n$|$)/
+		const lang = getLanguageConfig(this.settings.recipeLanguage);
+		const headingPattern = new RegExp(
+			`(## ${lang.ingredientsHeading}\\s*\\n)([\\s\\S]*?)(?=\\n## |\\n$|$)`
 		);
+		const sectionMatch = content.match(headingPattern);
 		if (!sectionMatch) {
 			throw new Error(
-				'No ingredients section found. The note needs a "## Zutaten" heading.'
+				`No ingredients section found. The note needs a "## ${lang.ingredientsHeading}" heading.`
 			);
 		}
 
@@ -56,16 +61,16 @@ export class RecipeScalerService {
 			[
 				{
 					role: "user",
-					content: `Rechne folgende Zutaten von ${currentServings} auf ${newServings} Portionen um. Behalte das Format bei. Antworte nur mit der neuen Zutatenliste, ohne Erklärungen.\n\n${ingredientsText}`,
+					content: lang.scalerUser(currentServings, newServings, ingredientsText),
 				},
 			],
-			"Du bist ein Koch-Assistent. Rechne Zutatenmengen proportional um. Runde sinnvoll (z.B. 2.5 Eier → 3 Eier, 0.33 TL → 1 Prise). Behalte das exakte Markdown-Format bei (z.B. Aufzählungszeichen, Unterüberschriften)."
+			lang.scalerSystem
 		);
 
 		// Replace ingredients section
 		const scaledTrimmed = scaled.trim();
 		content = content.replace(
-			/(## Zutaten\s*\n)([\s\S]*?)(?=\n## |\n$|$)/,
+			headingPattern,
 			`$1${scaledTrimmed}\n`
 		);
 

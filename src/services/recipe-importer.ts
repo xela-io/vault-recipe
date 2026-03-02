@@ -2,6 +2,7 @@ import { App, Notice, TFile, requestUrl } from "obsidian";
 import { RecipeData } from "../types";
 import { AIProvider } from "../providers/base";
 import { VaultRecipeSettings } from "../settings";
+import { getLanguageConfig } from "../languages";
 
 interface JsonLdRecipe {
 	title: string;
@@ -217,6 +218,8 @@ export class RecipeImporterService {
 	}
 
 	async extractRecipe(html: string, url: string): Promise<RecipeData> {
+		const lang = getLanguageConfig(this.settings.recipeLanguage);
+
 		// Stage 1: Try JSON-LD extraction
 		const jsonLd = this.extractJsonLd(html);
 
@@ -238,7 +241,7 @@ export class RecipeImporterService {
 				[
 					{
 						role: "user",
-						content: `Hier sind die strukturierten Rezeptdaten einer Webseite:
+						content: `Here is structured recipe data from a web page:
 Title: ${jsonLd.title}
 Servings: ${jsonLd.servings}
 Ingredients:
@@ -247,20 +250,20 @@ Steps:
 ${jsonLd.steps.map((s, idx) => `${idx + 1}. ${s}`).join("\n")}
 Total time: ${timeStr}
 
-Aufgaben:
-1. Übersetze alles ins Deutsche (falls nicht schon deutsch)
-2. Konvertiere alle Einheiten ins metrische System (cups→ml/g, oz→g, lbs→kg, °F→°C, tbsp→EL, tsp→TL)
-3. Gib die Gesamtzubereitungszeit als "recPreptime" an (z.B. "45 min" oder "1 h 30 min")
-4. Klassifiziere "recDiet": vegan/vegetarisch/fleisch/fisch/meeresfrüchte
-5. Klassifiziere "recCategory": Vorspeise/Hauptgericht/Dessert/Suppe/Salat/Beilage/Snack/Getränk
-6. Klassifiziere "recCuisine": z.B. Italienisch, Asiatisch, Mexikanisch, Deutsch, Französisch, Indisch, etc.
-7. Klassifiziere "recDifficulty": einfach/mittel/aufwendig
+Tasks:
+1. ${lang.translateInstruction}
+2. Convert all units to metric (cups→ml/g, oz→g, lbs→kg, °F→°C, tbsp→EL, tsp→TL)
+3. Provide total prep time as "recPreptime" (e.g. "45 min" or "1 h 30 min")
+4. Classify "recDiet": ${lang.dietLabels}
+5. Classify "recCategory": ${lang.categoryLabels}
+6. Classify "recCuisine": e.g. Italian, Asian, Mexican, German, French, Indian, etc. (in ${lang.displayName})
+7. Classify "recDifficulty": ${lang.difficultyLabels}
 
 Return JSON: { "title": "...", "servings": "...", "recPreptime": "...", "recDiet": "...", "recCategory": "...", "recCuisine": "...", "recDifficulty": "...", "ingredients": [...], "steps": [...], "notes": "..." }
 Respond ONLY with valid JSON, no markdown fences.`,
 					},
 				],
-				"Du bist ein Rezept-Assistent. Übersetze, konvertiere ins metrische System und klassifiziere Rezepte. Antworte nur mit validem JSON."
+				lang.recipeAssistantSystem
 			);
 
 			const jsonMatch = response.match(/\{[\s\S]*\}/);
@@ -285,7 +288,7 @@ Respond ONLY with valid JSON, no markdown fences.`,
 			if (!imageUrl) {
 				const imgUrls = this.collectImageUrls(html, url);
 				if (imgUrls.length > 0) {
-					imageSection = `\n\nHier sind Bild-URLs von der Seite. Wähle die URL, die am besten zum Rezept passt (kein Logo, Icon oder Werbung), und gib sie als "bestImageUrl" zurück. Falls keine passend ist, gib einen leeren String zurück.\n${imgUrls.map((u, i) => `${i + 1}. ${u}`).join("\n")}`;
+					imageSection = `\n\nHere are image URLs from the page. Pick the one that best matches the recipe (no logos, icons, or ads) and return it as "bestImageUrl". If none fits, return an empty string.\n${imgUrls.map((u, i) => `${i + 1}. ${u}`).join("\n")}`;
 				}
 			}
 
@@ -293,29 +296,29 @@ Respond ONLY with valid JSON, no markdown fences.`,
 				[
 					{
 						role: "user",
-						content: `Extrahiere das Rezept aus diesem Webseiteninhalt. Gib ein JSON-Objekt mit diesen Feldern zurück:
-- "title": Rezepttitel
-- "servings": Portionen (z.B. "4 Portionen")
-- "recPreptime": Gesamtzubereitungszeit (z.B. "45 min")
-- "recDiet": Klassifizierung: vegan/vegetarisch/fleisch/fisch/meeresfrüchte
-- "recCategory": Vorspeise/Hauptgericht/Dessert/Suppe/Salat/Beilage/Snack/Getränk
-- "recCuisine": z.B. Italienisch, Asiatisch, Mexikanisch, Deutsch, Französisch, Indisch, etc.
-- "recDifficulty": einfach/mittel/aufwendig
-- "ingredients": Array von Zutaten-Strings
-- "steps": Array von Zubereitungsschritten
-- "notes": optionale Tipps (leerer String wenn keine)${!imageUrl ? '\n- "bestImageUrl": die beste Bild-URL für das Rezept (leerer String wenn keine passend)' : ""}
+						content: `Extract the recipe from this web page content. Return a JSON object with these fields:
+- "title": recipe title
+- "servings": servings (e.g. "4 servings")
+- "recPreptime": total prep time (e.g. "45 min")
+- "recDiet": classify: ${lang.dietLabels}
+- "recCategory": ${lang.categoryLabels}
+- "recCuisine": e.g. Italian, Asian, Mexican, German, French, Indian, etc. (in ${lang.displayName})
+- "recDifficulty": ${lang.difficultyLabels}
+- "ingredients": array of ingredient strings
+- "steps": array of preparation steps
+- "notes": optional tips (empty string if none)${!imageUrl ? '\n- "bestImageUrl": best image URL for the recipe (empty string if none fits)' : ""}
 
-Wichtig:
-1. Übersetze alles ins Deutsche (falls nicht schon deutsch)
-2. Konvertiere alle Einheiten ins metrische System (cups→ml/g, oz→g, lbs→kg, °F→°C, tbsp→EL, tsp→TL)
+Important:
+1. ${lang.translateInstruction}
+2. Convert all units to metric (cups→ml/g, oz→g, lbs→kg, °F→°C, tbsp→EL, tsp→TL)
 
-Antworte NUR mit validem JSON, keine Markdown-Fences.
+Respond ONLY with valid JSON, no markdown fences.
 ${imageSection}
-Webseiteninhalt:
+Web page content:
 ${textContent}`,
 					},
 				],
-				"Du bist ein Rezept-Extraktions-Assistent. Extrahiere strukturierte Rezeptdaten aus Webseiteninhalt. Übersetze ins Deutsche und konvertiere ins metrische System. Antworte nur mit validem JSON."
+				lang.recipeExtractionSystem
 			);
 
 			const jsonMatch = response.match(/\{[\s\S]*\}/);
@@ -451,6 +454,7 @@ ${textContent}`,
 	}
 
 	async createRecipeNote(recipe: RecipeData): Promise<TFile> {
+		const lang = getLanguageConfig(this.settings.recipeLanguage);
 		const folder = this.settings.recipeFolder;
 
 		// Create folder if it doesn't exist
@@ -491,7 +495,7 @@ ${textContent}`,
 			`date_imported: "${recipe.dateImported}"`,
 			`rec_rating: ${recipe.recRating}`,
 			"tags:",
-			"  - rezept",
+			`  - ${lang.tag}`,
 			"---",
 		].join("\n");
 
@@ -512,10 +516,10 @@ ${textContent}`,
 			.map((s, idx) => `${idx + 1}. ${s}`)
 			.join("\n");
 
-		body += `## Zutaten\n\n${ingredientsList}\n\n## Zubereitung\n\n${stepsList}`;
+		body += `## ${lang.ingredientsHeading}\n\n${ingredientsList}\n\n## ${lang.stepsHeading}\n\n${stepsList}`;
 
 		if (recipe.notes) {
-			body += `\n\n## Notizen\n\n${recipe.notes}`;
+			body += `\n\n## ${lang.notesHeading}\n\n${recipe.notes}`;
 		}
 
 		const content = frontmatter + "\n" + body + "\n";

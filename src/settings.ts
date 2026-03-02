@@ -1,6 +1,7 @@
 import { App, PluginSettingTab, Setting } from "obsidian";
 import type VaultRecipePlugin from "./main";
 import { AIProviderType } from "./types";
+import { RecipeLanguage, LANGUAGES } from "./languages";
 
 export interface VaultRecipeSettings {
 	openaiApiKey: string;
@@ -10,6 +11,7 @@ export interface VaultRecipeSettings {
 	openaiChatModel: string;
 	anthropicChatModel: string;
 	googleChatModel: string;
+	recipeLanguage: RecipeLanguage;
 	recipeFolder: string;
 	shoppingListPath: string;
 	overviewFileName: string;
@@ -23,6 +25,7 @@ export const DEFAULT_SETTINGS: VaultRecipeSettings = {
 	openaiChatModel: "gpt-4o-mini",
 	anthropicChatModel: "claude-sonnet-4-20250514",
 	googleChatModel: "gemini-2.0-flash",
+	recipeLanguage: "de",
 	recipeFolder: "Rezepte",
 	shoppingListPath: "Einkaufsliste.md",
 	overviewFileName: "Rezept-Übersicht",
@@ -119,6 +122,22 @@ export class VaultRecipeSettingTab extends PluginSettingTab {
 						await this.plugin.saveSettings();
 					})
 			);
+
+		new Setting(containerEl)
+			.setName("Recipe Language")
+			.setDesc("Language for recipes, shopping lists, and AI prompts")
+			.addDropdown((dropdown) => {
+				for (const [key, lang] of Object.entries(LANGUAGES)) {
+					dropdown.addOption(key, lang.displayName);
+				}
+				dropdown
+					.setValue(this.plugin.settings.recipeLanguage)
+					.onChange(async (value) => {
+						this.plugin.settings.recipeLanguage =
+							value as RecipeLanguage;
+						await this.plugin.saveSettings();
+					});
+			});
 
 		// --- Model Settings ---
 		containerEl.createEl("h3", { text: "Chat Models" });
