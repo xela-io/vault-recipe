@@ -1,4 +1,4 @@
-import { App, PluginSettingTab, Setting } from "obsidian";
+import { App, PluginSettingTab, Setting, TFolder } from "obsidian";
 import type VaultRecipePlugin from "./main";
 import { AIProviderType } from "./types";
 import { RecipeLanguage, LANGUAGES } from "./languages";
@@ -226,15 +226,28 @@ export class VaultRecipeSettingTab extends PluginSettingTab {
 		new Setting(containerEl)
 			.setName("Recipe folder")
 			.setDesc("Folder where imported recipes are saved")
-			.addText((text) =>
-				text
-					.setPlaceholder("Rezepte")
-					.setValue(this.plugin.settings.recipeFolder)
-					.onChange(async (value) => {
-						this.plugin.settings.recipeFolder = value.trim();
-						await this.plugin.saveSettings();
-					})
-			);
+			.addDropdown((dropdown) => {
+				const folders = this.app.vault
+					.getAllLoadedFiles()
+					.filter((f): f is TFolder => f instanceof TFolder)
+					.map((f) => f.path)
+					.sort((a, b) => a.localeCompare(b));
+
+				for (const folder of folders) {
+					dropdown.addOption(folder, folder);
+				}
+
+				const current = this.plugin.settings.recipeFolder;
+				if (!folders.includes(current)) {
+					dropdown.addOption(current, `${current} (new)`);
+				}
+
+				dropdown.setValue(current);
+				dropdown.onChange(async (value) => {
+					this.plugin.settings.recipeFolder = value;
+					await this.plugin.saveSettings();
+				});
+			});
 
 		new Setting(containerEl)
 			.setName("Overview file name")
