@@ -1,0 +1,201 @@
+/* Vault Recipe Plugin Styles */
+
+/* Shared base styles */
+.vault-ai-search-container {
+	display: flex;
+	gap: 8px;
+	margin-bottom: 16px;
+}
+
+.vault-ai-search-btn {
+	padding: 8px 20px;
+	background: var(--interactive-accent);
+	color: var(--text-on-accent);
+	border: none;
+	border-radius: 4px;
+	cursor: pointer;
+	font-size: 14px;
+}
+
+.vault-ai-search-btn:hover {
+	background: var(--interactive-accent-hover);
+}
+
+/* Loading */
+.vault-ai-loading {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	padding: 12px;
+	color: var(--text-muted);
+}
+
+.vault-ai-spinner {
+	width: 16px;
+	height: 16px;
+	border: 2px solid var(--background-modifier-border);
+	border-top: 2px solid var(--interactive-accent);
+	border-radius: 50%;
+	animation: vault-ai-spin 0.8s linear infinite;
+}
+
+@keyframes vault-ai-spin {
+	0% { transform: rotate(0deg); }
+	100% { transform: rotate(360deg); }
+}
+
+/* Error */
+.vault-ai-error {
+	padding: 12px;
+	color: var(--text-error);
+	background: var(--background-secondary);
+	border-radius: 4px;
+	border: 1px solid var(--text-error);
+}
+
+/* Button bar */
+.vault-ai-diff-buttons {
+	display: flex;
+	justify-content: flex-end;
+	gap: 8px;
+}
+
+.vault-ai-btn-cancel {
+	padding: 8px 20px;
+	border: 1px solid var(--background-modifier-border);
+	background: var(--background-secondary);
+	color: var(--text-normal);
+	border-radius: 4px;
+	cursor: pointer;
+}
+
+.vault-ai-btn-cancel:hover {
+	background: var(--background-modifier-hover);
+}
+
+.vault-ai-btn-apply {
+	padding: 8px 20px;
+	border: none;
+	border-radius: 4px;
+	cursor: pointer;
+}
+
+/* Recipe Modal */
+.vault-ai-recipe-modal {
+	padding: 16px;
+}
+
+.vault-ai-recipe-modal h2 {
+	margin-top: 0;
+	margin-bottom: 12px;
+}
+
+.vault-ai-recipe-input {
+	flex: 1;
+	padding: 8px 12px;
+	border: 1px solid var(--background-modifier-border);
+	border-radius: 4px;
+	background: var(--background-primary);
+	color: var(--text-normal);
+	font-size: 14px;
+}
+
+.vault-ai-recipe-input:focus {
+	border-color: var(--interactive-accent);
+	outline: none;
+}
+
+.vault-ai-recipe-preview {
+	background: var(--background-secondary);
+	border: 1px solid var(--background-modifier-border);
+	border-radius: 6px;
+	padding: 16px;
+	margin-bottom: 16px;
+	max-height: 50vh;
+	overflow-y: auto;
+}
+
+.vault-ai-recipe-preview h3 {
+	margin-top: 0;
+	margin-bottom: 8px;
+	color: var(--text-normal);
+}
+
+.vault-ai-recipe-preview h4 {
+	margin-top: 12px;
+	margin-bottom: 6px;
+	color: var(--text-muted);
+	font-size: 13px;
+	text-transform: uppercase;
+	letter-spacing: 0.5px;
+}
+
+.vault-ai-recipe-preview ul,
+.vault-ai-recipe-preview ol {
+	margin: 0;
+	padding-left: 20px;
+}
+
+.vault-ai-recipe-preview li {
+	margin-bottom: 4px;
+	font-size: 14px;
+	line-height: 1.5;
+}
+
+.vault-ai-recipe-meta {
+	color: var(--text-muted);
+	font-size: 13px;
+	margin-top: 0;
+	margin-bottom: 8px;
+}
+
+.vault-ai-recipe-preview-img {
+	max-width: 100%;
+	max-height: 200px;
+	object-fit: cover;
+	border-radius: 6px;
+	margin-bottom: 12px;
+}
+
+/* Shopping List Modal */
+.vault-recipe-shopping-modal {
+	padding: 16px;
+}
+
+.vault-recipe-shopping-modal h2 {
+	margin-top: 0;
+	margin-bottom: 12px;
+}
+
+.vault-recipe-shopping-list {
+	max-height: 50vh;
+	overflow-y: auto;
+	border: 1px solid var(--background-modifier-border);
+	border-radius: 6px;
+	padding: 8px;
+	margin-bottom: 16px;
+}
+
+.vault-recipe-shopping-item {
+	padding: 4px 8px;
+	border-radius: 4px;
+}
+
+.vault-recipe-shopping-item:hover {
+	background: var(--background-modifier-hover);
+}
+
+.vault-recipe-shopping-item label {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	cursor: pointer;
+	font-size: 14px;
+	color: var(--text-normal);
+}
+
+/* Warning in settings */
+.vault-ai-warning {
+	font-size: 13px;
+	line-height: 1.4;
+}

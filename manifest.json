@@ -1,0 +1,10 @@
+{
+	"id": "vault-recipe",
+	"name": "Vault Recipe",
+	"version": "1.0.0",
+	"minAppVersion": "1.4.0",
+	"description": "AI-powered recipe import from URLs with automatic translation, metric conversion, ingredient scaling, smart shopping lists, and recipe overview generation.",
+	"author": "xela-io",
+	"authorUrl": "https://github.com/xela-io",
+	"isDesktopOnly": false
+}
