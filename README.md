@@ -1,14 +1,13 @@
 # Vault Recipe
 
-AI-powered recipe management for [Obsidian](https://obsidian.md). Import recipes from any URL, scale servings, generate shopping lists, and create recipe overviews — all inside your vault.
+AI-powered recipe management for [Obsidian](https://obsidian.md). Import recipes from any URL, scale servings, and create recipe overviews — all inside your vault.
 
-*KI-gestützte Rezeptverwaltung für Obsidian. Importiere Rezepte von beliebigen URLs, skaliere Portionen, erstelle Einkaufslisten und generiere Rezeptübersichten — alles direkt in deinem Vault.*
+*KI-gestützte Rezeptverwaltung für Obsidian. Importiere Rezepte von beliebigen URLs, skaliere Portionen und generiere Rezeptübersichten — alles direkt in deinem Vault.*
 
 ## Features
 
 - **Recipe Import** — Paste a URL, and the plugin extracts the recipe using AI. Automatically translates to German and converts to metric units.
 - **Scale Servings** — Adjust ingredient quantities to any number of servings with a single command.
-- **Shopping List** — Select recipes and generate a merged, deduplicated shopping list as a note in your vault.
 - **Recipe Overview** — Auto-generate an overview note that lists all recipes in your recipe folder with metadata.
 
 ## Screenshots
@@ -52,7 +51,6 @@ Select your preferred provider under **Default Chat Provider**. You can also cus
 |---------|---------|-------------|
 | Recipe folder | `Rezepte` | Folder where imported recipes are saved |
 | Overview file name | `Rezept-Übersicht` | Name of the generated overview note |
-| Shopping list note | `Einkaufsliste.md` | Path to the shopping list note |
 
 ## Usage
 
@@ -69,18 +67,6 @@ Opens a dialog where you paste a recipe URL. The plugin fetches the page, extrac
 *(Editor command — requires an open recipe note)*
 
 Reads the current servings from frontmatter and lets you choose a new serving count. All ingredient quantities are recalculated by AI.
-
-### Add ingredients to shopping list
-`Vault Recipe: Add ingredients to shopping list`
-
-*(Editor command — requires an open recipe note)*
-
-Parses the ingredients from the current note and appends them to your shopping list, merging duplicates intelligently.
-
-### Shopping list from recipes
-`Vault Recipe: Shopping list from recipes`
-
-Opens a dialog to select multiple recipes. Their ingredients are merged into a single shopping list with checkboxes.
 
 ### Generate recipe overview
 `Vault Recipe: Generate recipe overview`

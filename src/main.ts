@@ -2,31 +2,21 @@ import { Notice, Plugin, TFile } from "obsidian";
 import { VaultRecipeSettings, DEFAULT_SETTINGS, VaultRecipeSettingTab } from "./settings";
 import { AIProviderType } from "./types";
 import { createProvider, AIProvider } from "./providers/base";
-import { getLanguageConfig } from "./languages";
 import { RecipeImporterService } from "./services/recipe-importer";
-import { ShoppingListService } from "./services/shopping-list";
 import { RecipeOverviewService } from "./services/recipe-overview";
 import { RecipeScalerService } from "./services/recipe-scaler";
 import { RecipeModal } from "./ui/recipe-modal";
-import { ShoppingListModal } from "./ui/shopping-list-modal";
 import { ScaleModal } from "./ui/scale-modal";
 
 export default class VaultRecipePlugin extends Plugin {
 	settings: VaultRecipeSettings;
 	private recipeImporterService: RecipeImporterService;
-	private shoppingListService: ShoppingListService;
 	private recipeScalerService: RecipeScalerService;
 
 	async onload(): Promise<void> {
 		await this.loadSettings();
 
 		this.recipeImporterService = new RecipeImporterService(
-			this.app,
-			this.settings,
-			() => this.getChatProvider()
-		);
-
-		this.shoppingListService = new ShoppingListService(
 			this.app,
 			this.settings,
 			() => this.getChatProvider()
@@ -47,61 +37,6 @@ export default class VaultRecipePlugin extends Plugin {
 				new RecipeModal(
 					this.app,
 					this.recipeImporterService
-				).open();
-			},
-		});
-
-		this.addCommand({
-			id: "vault-recipe-add-to-shopping-list",
-			name: "Add ingredients to shopping list",
-			editorCallback: async (_editor, ctx) => {
-				const file = ctx.file;
-				if (!file) {
-					new Notice("No active file");
-					return;
-				}
-
-				try {
-					new Notice("Parsing ingredients...");
-					const entry =
-						await this.shoppingListService.parseIngredientsFromNote(
-							file
-						);
-
-					if (entry.ingredients.length === 0) {
-						const lang = getLanguageConfig(this.settings.recipeLanguage);
-						new Notice(
-							`No ingredients found. The note needs a "## ${lang.ingredientsHeading}" section.`
-						);
-						return;
-					}
-
-					new Notice("Merging ingredients...");
-					const merged =
-						await this.shoppingListService.mergeIngredients([
-							entry,
-						]);
-					const resultFile =
-						await this.shoppingListService.appendToShoppingList(
-							merged
-						);
-
-					new Notice(`Shopping list updated: ${resultFile.path}`);
-				} catch (e) {
-					new Notice(
-						`Error: ${e instanceof Error ? e.message : String(e)}`
-					);
-				}
-			},
-		});
-
-		this.addCommand({
-			id: "vault-recipe-shopping-list",
-			name: "Shopping list from recipes",
-			callback: () => {
-				new ShoppingListModal(
-					this.app,
-					this.shoppingListService
 				).open();
 			},
 		});

@@ -14,11 +14,6 @@ export interface LanguageConfig {
 	dietLabels: string;
 	categoryLabels: string;
 	difficultyLabels: string;
-	/** Shopping list AI prompt */
-	shoppingListSystem: string;
-	shoppingListUser: (ingredients: string) => string;
-	shoppingListBasics: string;
-	shoppingListCategories: string;
 	/** Scaler AI prompt */
 	scalerSystem: string;
 	scalerUser: (from: number, to: number, ingredients: string) => string;
@@ -58,20 +53,6 @@ const de: LanguageConfig = {
 	dietLabels: "vegan/vegetarisch/fleisch/fisch/meeresfrüchte",
 	categoryLabels: "Vorspeise/Hauptgericht/Dessert/Suppe/Salat/Beilage/Snack/Getränk",
 	difficultyLabels: "einfach/mittel/aufwendig",
-	shoppingListSystem: `Du bist ein Einkaufslisten-Assistent. Erstelle aus den gegebenen Zutatenlisten eine zusammengeführte Einkaufsliste.
-
-Regeln:
-1. Mengen zusammenrechnen (z.B. 2× 200g Butter → 400g Butter)
-2. Ähnliche Zutaten erkennen und zusammenfassen (z.B. Sahne/Schlagsahne)
-3. Standardzutaten entfernen: Salz, Pfeffer, Wasser, Öl, Zucker (Basics die jeder hat)
-4. Nach Supermarkt-Kategorie sortieren: Obst & Gemüse, Milchprodukte, Fleisch & Fisch, Trockenwaren, Gewürze, Sonstiges
-5. Jeder Eintrag als Markdown-Checkbox: - [ ] Menge Zutat
-
-Ausgabe NUR die Checkboxen-Liste, gruppiert nach Kategorie mit Kategorie als Bold-Text (**Kategorie**). Keine Erklärungen, kein Markdown-Codeblock.`,
-	shoppingListUser: (ingredients) =>
-		`Hier sind Zutatenlisten aus mehreren Rezepten:\n\n${ingredients}\n\nBitte erstelle eine zusammengeführte Einkaufsliste.`,
-	shoppingListBasics: "Salz, Pfeffer, Wasser, Öl, Zucker",
-	shoppingListCategories: "Obst & Gemüse, Milchprodukte, Fleisch & Fisch, Trockenwaren, Gewürze, Sonstiges",
 	scalerSystem: "Du bist ein Koch-Assistent. Rechne Zutatenmengen proportional um. Runde sinnvoll (z.B. 2.5 Eier → 3 Eier, 0.33 TL → 1 Prise). Behalte das exakte Markdown-Format bei (z.B. Aufzählungszeichen, Unterüberschriften).",
 	scalerUser: (from, to, ingredients) =>
 		`Rechne folgende Zutaten von ${from} auf ${to} Portionen um. Behalte das Format bei. Antworte nur mit der neuen Zutatenliste, ohne Erklärungen.\n\n${ingredients}`,
@@ -108,20 +89,6 @@ const en: LanguageConfig = {
 	dietLabels: "vegan/vegetarian/meat/fish/seafood",
 	categoryLabels: "Appetizer/Main Course/Dessert/Soup/Salad/Side Dish/Snack/Beverage",
 	difficultyLabels: "easy/medium/advanced",
-	shoppingListSystem: `You are a shopping list assistant. Create a merged shopping list from the given ingredient lists.
-
-Rules:
-1. Add up quantities (e.g. 2× 200g butter → 400g butter)
-2. Recognize and merge similar ingredients (e.g. cream/heavy cream)
-3. Remove staples: salt, pepper, water, oil, sugar (basics everyone has)
-4. Sort by supermarket category: Fruits & Vegetables, Dairy, Meat & Fish, Dry Goods, Spices, Other
-5. Each entry as Markdown checkbox: - [ ] amount ingredient
-
-Output ONLY the checkbox list, grouped by category with category as bold text (**Category**). No explanations, no markdown code blocks.`,
-	shoppingListUser: (ingredients) =>
-		`Here are ingredient lists from multiple recipes:\n\n${ingredients}\n\nPlease create a merged shopping list.`,
-	shoppingListBasics: "salt, pepper, water, oil, sugar",
-	shoppingListCategories: "Fruits & Vegetables, Dairy, Meat & Fish, Dry Goods, Spices, Other",
 	scalerSystem: "You are a cooking assistant. Scale ingredient quantities proportionally. Round sensibly (e.g. 2.5 eggs → 3 eggs, 0.33 tsp → 1 pinch). Keep the exact Markdown format (e.g. bullet points, subheadings).",
 	scalerUser: (from, to, ingredients) =>
 		`Scale the following ingredients from ${from} to ${to} servings. Keep the format. Reply only with the new ingredient list, no explanations.\n\n${ingredients}`,
@@ -158,20 +125,6 @@ const fr: LanguageConfig = {
 	dietLabels: "végan/végétarien/viande/poisson/fruits de mer",
 	categoryLabels: "Entrée/Plat principal/Dessert/Soupe/Salade/Accompagnement/Snack/Boisson",
 	difficultyLabels: "facile/moyen/avancé",
-	shoppingListSystem: `Tu es un assistant de liste de courses. Crée une liste de courses fusionnée à partir des listes d'ingrédients données.
-
-Règles :
-1. Additionner les quantités (ex. 2× 200g beurre → 400g beurre)
-2. Reconnaître et fusionner les ingrédients similaires (ex. crème/crème épaisse)
-3. Supprimer les basiques : sel, poivre, eau, huile, sucre
-4. Trier par rayon : Fruits & Légumes, Produits laitiers, Viande & Poisson, Épicerie sèche, Épices, Autres
-5. Chaque entrée en checkbox Markdown : - [ ] quantité ingrédient
-
-Sortie UNIQUEMENT la liste de checkboxes, groupée par catégorie avec catégorie en gras (**Catégorie**). Pas d'explications, pas de blocs de code.`,
-	shoppingListUser: (ingredients) =>
-		`Voici les listes d'ingrédients de plusieurs recettes :\n\n${ingredients}\n\nCrée une liste de courses fusionnée.`,
-	shoppingListBasics: "sel, poivre, eau, huile, sucre",
-	shoppingListCategories: "Fruits & Légumes, Produits laitiers, Viande & Poisson, Épicerie sèche, Épices, Autres",
 	scalerSystem: "Tu es un assistant culinaire. Adapte les quantités proportionnellement. Arrondis raisonnablement (ex. 2,5 œufs → 3 œufs). Garde le format Markdown exact.",
 	scalerUser: (from, to, ingredients) =>
 		`Adapte les ingrédients suivants de ${from} à ${to} portions. Garde le format. Réponds uniquement avec la nouvelle liste, sans explications.\n\n${ingredients}`,
@@ -208,20 +161,6 @@ const es: LanguageConfig = {
 	dietLabels: "vegano/vegetariano/carne/pescado/mariscos",
 	categoryLabels: "Entrante/Plato principal/Postre/Sopa/Ensalada/Acompañamiento/Snack/Bebida",
 	difficultyLabels: "fácil/medio/avanzado",
-	shoppingListSystem: `Eres un asistente de lista de compras. Crea una lista de compras fusionada a partir de las listas de ingredientes dadas.
-
-Reglas:
-1. Sumar cantidades (ej. 2× 200g mantequilla → 400g mantequilla)
-2. Reconocer y fusionar ingredientes similares (ej. nata/crema)
-3. Eliminar básicos: sal, pimienta, agua, aceite, azúcar
-4. Ordenar por sección: Frutas y Verduras, Lácteos, Carne y Pescado, Productos secos, Especias, Otros
-5. Cada entrada como checkbox Markdown: - [ ] cantidad ingrediente
-
-Salida SOLO la lista de checkboxes, agrupada por categoría con categoría en negrita (**Categoría**). Sin explicaciones, sin bloques de código.`,
-	shoppingListUser: (ingredients) =>
-		`Aquí están las listas de ingredientes de varias recetas:\n\n${ingredients}\n\nCrea una lista de compras fusionada.`,
-	shoppingListBasics: "sal, pimienta, agua, aceite, azúcar",
-	shoppingListCategories: "Frutas y Verduras, Lácteos, Carne y Pescado, Productos secos, Especias, Otros",
 	scalerSystem: "Eres un asistente de cocina. Escala las cantidades proporcionalmente. Redondea razonablemente (ej. 2,5 huevos → 3 huevos). Mantén el formato Markdown exacto.",
 	scalerUser: (from, to, ingredients) =>
 		`Escala los siguientes ingredientes de ${from} a ${to} porciones. Mantén el formato. Responde solo con la nueva lista, sin explicaciones.\n\n${ingredients}`,
@@ -258,20 +197,6 @@ const it: LanguageConfig = {
 	dietLabels: "vegano/vegetariano/carne/pesce/frutti di mare",
 	categoryLabels: "Antipasto/Primo/Secondo/Dolce/Zuppa/Insalata/Contorno/Snack/Bevanda",
 	difficultyLabels: "facile/medio/avanzato",
-	shoppingListSystem: `Sei un assistente per la lista della spesa. Crea una lista della spesa unificata dalle liste di ingredienti date.
-
-Regole:
-1. Somma le quantità (es. 2× 200g burro → 400g burro)
-2. Riconosci e unisci ingredienti simili (es. panna/panna fresca)
-3. Rimuovi i basici: sale, pepe, acqua, olio, zucchero
-4. Ordina per reparto: Frutta e Verdura, Latticini, Carne e Pesce, Prodotti secchi, Spezie, Altro
-5. Ogni voce come checkbox Markdown: - [ ] quantità ingrediente
-
-Output SOLO la lista di checkbox, raggruppata per categoria con categoria in grassetto (**Categoria**). Nessuna spiegazione, nessun blocco di codice.`,
-	shoppingListUser: (ingredients) =>
-		`Ecco le liste di ingredienti da più ricette:\n\n${ingredients}\n\nCrea una lista della spesa unificata.`,
-	shoppingListBasics: "sale, pepe, acqua, olio, zucchero",
-	shoppingListCategories: "Frutta e Verdura, Latticini, Carne e Pesce, Prodotti secchi, Spezie, Altro",
 	scalerSystem: "Sei un assistente di cucina. Scala le quantità proporzionalmente. Arrotonda ragionevolmente (es. 2,5 uova → 3 uova). Mantieni il formato Markdown esatto.",
 	scalerUser: (from, to, ingredients) =>
 		`Scala i seguenti ingredienti da ${from} a ${to} porzioni. Mantieni il formato. Rispondi solo con la nuova lista, senza spiegazioni.\n\n${ingredients}`,

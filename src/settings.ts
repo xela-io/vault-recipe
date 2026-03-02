@@ -13,7 +13,6 @@ export interface VaultRecipeSettings {
 	googleChatModel: string;
 	recipeLanguage: RecipeLanguage;
 	recipeFolder: string;
-	shoppingListPath: string;
 	overviewFileName: string;
 }
 
@@ -27,7 +26,6 @@ export const DEFAULT_SETTINGS: VaultRecipeSettings = {
 	googleChatModel: "gemini-2.0-flash",
 	recipeLanguage: "de",
 	recipeFolder: "Rezepte",
-	shoppingListPath: "Einkaufsliste.md",
 	overviewFileName: "Rezept-Übersicht",
 };
 
@@ -125,7 +123,7 @@ export class VaultRecipeSettingTab extends PluginSettingTab {
 
 		new Setting(containerEl)
 			.setName("Recipe Language")
-			.setDesc("Language for recipes, shopping lists, and AI prompts")
+			.setDesc("Language for recipes and AI prompts")
 			.addDropdown((dropdown) => {
 				for (const [key, lang] of Object.entries(LANGUAGES)) {
 					dropdown.addOption(key, lang.displayName);
@@ -200,22 +198,6 @@ export class VaultRecipeSettingTab extends PluginSettingTab {
 					.setValue(this.plugin.settings.overviewFileName)
 					.onChange(async (value) => {
 						this.plugin.settings.overviewFileName = value.trim();
-						await this.plugin.saveSettings();
-					})
-			);
-
-		// --- Shopping List ---
-		containerEl.createEl("h3", { text: "Shopping List" });
-
-		new Setting(containerEl)
-			.setName("Shopping list note")
-			.setDesc("Path to the shopping list note in your vault")
-			.addText((text) =>
-				text
-					.setPlaceholder("Einkaufsliste.md")
-					.setValue(this.plugin.settings.shoppingListPath)
-					.onChange(async (value) => {
-						this.plugin.settings.shoppingListPath = value.trim();
 						await this.plugin.saveSettings();
 					})
 			);

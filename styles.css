@@ -157,43 +157,6 @@
 	margin-bottom: 12px;
 }
 
-/* Shopping List Modal */
-.vault-recipe-shopping-modal {
-	padding: 16px;
-}
-
-.vault-recipe-shopping-modal h2 {
-	margin-top: 0;
-	margin-bottom: 12px;
-}
-
-.vault-recipe-shopping-list {
-	max-height: 50vh;
-	overflow-y: auto;
-	border: 1px solid var(--background-modifier-border);
-	border-radius: 6px;
-	padding: 8px;
-	margin-bottom: 16px;
-}
-
-.vault-recipe-shopping-item {
-	padding: 4px 8px;
-	border-radius: 4px;
-}
-
-.vault-recipe-shopping-item:hover {
-	background: var(--background-modifier-hover);
-}
-
-.vault-recipe-shopping-item label {
-	display: flex;
-	align-items: center;
-	gap: 8px;
-	cursor: pointer;
-	font-size: 14px;
-	color: var(--text-normal);
-}
-
 /* Warning in settings */
 .vault-ai-warning {
 	font-size: 13px;
