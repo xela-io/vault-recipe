@@ -34,6 +34,50 @@ export async function requestWithRetry(
 	throw lastError;
 }
 
+export async function fetchOpenAIModels(apiKey: string): Promise<string[]> {
+	const response = await requestUrl({
+		url: "https://api.openai.com/v1/models",
+		method: "GET",
+		headers: { Authorization: `Bearer ${apiKey}` },
+	});
+	return (response.json.data as { id: string }[])
+		.map((m) => m.id)
+		.filter((id) => /^(gpt-|o\d|chatgpt-)/.test(id))
+		.sort();
+}
+
+export async function fetchAnthropicModels(apiKey: string): Promise<string[]> {
+	const response = await requestUrl({
+		url: "https://api.anthropic.com/v1/models?limit=100",
+		method: "GET",
+		headers: {
+			"x-api-key": apiKey,
+			"anthropic-version": "2023-06-01",
+		},
+	});
+	return (response.json.data as { id: string }[])
+		.map((m) => m.id)
+		.sort();
+}
+
+export async function fetchGoogleModels(apiKey: string): Promise<string[]> {
+	const response = await requestUrl({
+		url: `https://generativelanguage.googleapis.com/v1beta/models?key=${apiKey}&pageSize=100`,
+		method: "GET",
+	});
+	return (
+		response.json.models as {
+			name: string;
+			supportedGenerationMethods?: string[];
+		}[]
+	)
+		.filter((m) =>
+			m.supportedGenerationMethods?.includes("generateContent")
+		)
+		.map((m) => m.name.replace("models/", ""))
+		.sort();
+}
+
 export function createProvider(
 	type: AIProviderType,
 	settings: VaultRecipeSettings

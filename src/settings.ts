@@ -2,6 +2,11 @@ import { App, PluginSettingTab, Setting } from "obsidian";
 import type VaultRecipePlugin from "./main";
 import { AIProviderType } from "./types";
 import { RecipeLanguage, LANGUAGES } from "./languages";
+import {
+	fetchOpenAIModels,
+	fetchAnthropicModels,
+	fetchGoogleModels,
+} from "./providers/base";
 
 export interface VaultRecipeSettings {
 	openaiApiKey: string;
@@ -35,6 +40,57 @@ export class VaultRecipeSettingTab extends PluginSettingTab {
 	constructor(app: App, plugin: VaultRecipePlugin) {
 		super(app, plugin);
 		this.plugin = plugin;
+	}
+
+	private addModelDropdown(
+		containerEl: HTMLElement,
+		name: string,
+		settingKey:
+			| "openaiChatModel"
+			| "anthropicChatModel"
+			| "googleChatModel",
+		apiKey: string,
+		fetchFn: (apiKey: string) => Promise<string[]>
+	): void {
+		const setting = new Setting(containerEl).setName(name);
+		const currentValue = this.plugin.settings[settingKey];
+
+		if (!apiKey) {
+			setting.setDesc("Enter API key to load available models");
+			setting.addDropdown((dropdown) => {
+				dropdown.addOption(currentValue, currentValue);
+				dropdown.setValue(currentValue);
+				dropdown.setDisabled(true);
+			});
+			return;
+		}
+
+		setting.setDesc("Loading models...");
+
+		setting.addDropdown((dropdown) => {
+			dropdown.addOption(currentValue, currentValue);
+			dropdown.setValue(currentValue);
+			dropdown.onChange(async (value) => {
+				this.plugin.settings[settingKey] = value;
+				await this.plugin.saveSettings();
+			});
+
+			fetchFn(apiKey)
+				.then((models) => {
+					dropdown.selectEl.empty();
+					for (const model of models) {
+						dropdown.addOption(model, model);
+					}
+					if (!models.includes(currentValue)) {
+						dropdown.addOption(currentValue, currentValue);
+					}
+					dropdown.setValue(currentValue);
+					setting.setDesc(`${models.length} models available`);
+				})
+				.catch(() => {
+					setting.setDesc("Failed to load models — check API key");
+				});
+		});
 	}
 
 	display(): void {
@@ -140,38 +196,29 @@ export class VaultRecipeSettingTab extends PluginSettingTab {
 		// --- Model Settings ---
 		containerEl.createEl("h3", { text: "Chat Models" });
 
-		new Setting(containerEl)
-			.setName("OpenAI Chat Model")
-			.addText((text) =>
-				text
-					.setValue(this.plugin.settings.openaiChatModel)
-					.onChange(async (value) => {
-						this.plugin.settings.openaiChatModel = value;
-						await this.plugin.saveSettings();
-					})
-			);
+		this.addModelDropdown(
+			containerEl,
+			"OpenAI Chat Model",
+			"openaiChatModel",
+			this.plugin.settings.openaiApiKey,
+			fetchOpenAIModels
+		);
 
-		new Setting(containerEl)
-			.setName("Anthropic Chat Model")
-			.addText((text) =>
-				text
-					.setValue(this.plugin.settings.anthropicChatModel)
-					.onChange(async (value) => {
-						this.plugin.settings.anthropicChatModel = value;
-						await this.plugin.saveSettings();
-					})
-			);
+		this.addModelDropdown(
+			containerEl,
+			"Anthropic Chat Model",
+			"anthropicChatModel",
+			this.plugin.settings.anthropicApiKey,
+			fetchAnthropicModels
+		);
 
-		new Setting(containerEl)
-			.setName("Google Chat Model")
-			.addText((text) =>
-				text
-					.setValue(this.plugin.settings.googleChatModel)
-					.onChange(async (value) => {
-						this.plugin.settings.googleChatModel = value;
-						await this.plugin.saveSettings();
-					})
-			);
+		this.addModelDropdown(
+			containerEl,
+			"Google Chat Model",
+			"googleChatModel",
+			this.plugin.settings.googleApiKey,
+			fetchGoogleModels
+		);
 
 		// --- Recipe Settings ---
 		containerEl.createEl("h3", { text: "Recipe Import" });
