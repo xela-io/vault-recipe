@@ -194,11 +194,11 @@ export class VaultRecipeSettingTab extends PluginSettingTab {
 			});
 
 		// --- Model Settings ---
-		containerEl.createEl("h3", { text: "Chat Models" });
+		containerEl.createEl("h3", { text: "Models" });
 
 		this.addModelDropdown(
 			containerEl,
-			"OpenAI Chat Model",
+			"OpenAI Model",
 			"openaiChatModel",
 			this.plugin.settings.openaiApiKey,
 			fetchOpenAIModels
@@ -206,7 +206,7 @@ export class VaultRecipeSettingTab extends PluginSettingTab {
 
 		this.addModelDropdown(
 			containerEl,
-			"Anthropic Chat Model",
+			"Anthropic Model",
 			"anthropicChatModel",
 			this.plugin.settings.anthropicApiKey,
 			fetchAnthropicModels
@@ -214,7 +214,7 @@ export class VaultRecipeSettingTab extends PluginSettingTab {
 
 		this.addModelDropdown(
 			containerEl,
-			"Google Chat Model",
+			"Google Model",
 			"googleChatModel",
 			this.plugin.settings.googleApiKey,
 			fetchGoogleModels
