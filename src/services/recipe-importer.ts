@@ -114,7 +114,7 @@ export class RecipeImporterService {
 
 		while ((match = scriptRegex.exec(html)) !== null) {
 			try {
-				const data = JSON.parse(match[1]);
+				const data: unknown = JSON.parse(match[1]);
 				const recipe = this.findRecipeInLd(data);
 				if (recipe) return recipe;
 			} catch {
@@ -229,7 +229,7 @@ export class RecipeImporterService {
 			return imageData;
 		}
 		if (Array.isArray(imageData)) {
-			const first = imageData[0];
+			const first: unknown = imageData[0];
 			if (typeof first === "string") return first;
 			if (first && typeof first === "object") {
 				const url = (first as Record<string, unknown>)["url"];
@@ -375,7 +375,7 @@ ${textContent}`,
 		const finalImageUrl = imageUrl || safeStr(parsed.bestImageUrl);
 
 		return {
-			title: parsed.title as string,
+			title: parsed.title,
 			source: url,
 			servings: safeStr(parsed.servings),
 			recPreptime: safeStr(parsed.recPreptime),
@@ -464,7 +464,7 @@ ${textContent}`,
 		}
 
 		// Use Obsidian's processFrontMatter to set properties with correct types
-		await this.app.fileManager.processFrontMatter(file, (fm) => {
+		await this.app.fileManager.processFrontMatter(file, (fm: Record<string, unknown>) => {
 			fm[FM.TITLE] = recipe.title;
 			fm[FM.SOURCE] = recipe.source;
 			fm[FM.SERVINGS] = recipe.servings;

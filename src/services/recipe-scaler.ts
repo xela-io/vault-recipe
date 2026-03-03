@@ -29,7 +29,7 @@ export class RecipeScalerService {
 	 */
 	getServings(file: TFile): number | null {
 		const cache = this.app.metadataCache.getFileCache(file);
-		const servings = cache?.frontmatter?.[FM.SERVINGS];
+		const servings: unknown = cache?.frontmatter?.[FM.SERVINGS];
 		if (typeof servings === "number") return servings;
 		if (typeof servings === "string") {
 			const parsed = parseInt(servings, 10);
@@ -88,7 +88,7 @@ export class RecipeScalerService {
 		);
 
 		await this.app.vault.modify(file, content);
-		await this.app.fileManager.processFrontMatter(file, (fm) => {
+		await this.app.fileManager.processFrontMatter(file, (fm: Record<string, unknown>) => {
 			fm[FM.SERVINGS] = newServings;
 		});
 	}

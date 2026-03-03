@@ -2,6 +2,10 @@ import { AIProvider, requestWithRetry } from "./base";
 import { ChatMessage } from "../types";
 import { VaultRecipeSettings } from "../settings";
 
+interface OpenAIChatResponse {
+	choices: { message: { content: string } }[];
+}
+
 export class OpenAIProvider implements AIProvider {
 	private apiKey: string;
 	private chatModel: string;
@@ -41,15 +45,15 @@ export class OpenAIProvider implements AIProvider {
 			}
 		);
 
-		const choices = response.json.choices;
+		const result = response.json as OpenAIChatResponse;
 		if (
-			!Array.isArray(choices) ||
-			choices.length === 0 ||
-			!choices[0].message?.content
+			!Array.isArray(result.choices) ||
+			result.choices.length === 0 ||
+			!result.choices[0].message?.content
 		) {
 			throw new Error("Unexpected OpenAI response format");
 		}
-		return choices[0].message.content;
+		return result.choices[0].message.content;
 	}
 
 }

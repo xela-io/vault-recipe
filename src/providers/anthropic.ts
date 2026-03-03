@@ -3,6 +3,10 @@ import { ChatMessage } from "../types";
 import { VaultRecipeSettings } from "../settings";
 import { ANTHROPIC_API_VERSION, ANTHROPIC_MAX_TOKENS } from "../constants";
 
+interface AnthropicChatResponse {
+	content: { text: string }[];
+}
+
 export class AnthropicProvider implements AIProvider {
 	private apiKey: string;
 	private chatModel: string;
@@ -49,9 +53,9 @@ export class AnthropicProvider implements AIProvider {
 			}
 		);
 
-		const content = response.json.content;
-		if (Array.isArray(content) && content.length > 0) {
-			return content[0].text;
+		const result = response.json as AnthropicChatResponse;
+		if (result.content.length > 0) {
+			return result.content[0].text;
 		}
 		throw new Error("Unexpected Anthropic response format");
 	}

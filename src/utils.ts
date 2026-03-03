@@ -41,7 +41,7 @@ export function parseJsonFromResponse(response: string): Record<string, unknown>
 
 	// Try direct parse first (most common: AI returns clean JSON)
 	try {
-		const direct = JSON.parse(cleaned);
+		const direct: unknown = JSON.parse(cleaned);
 		if (typeof direct === "object" && direct !== null && !Array.isArray(direct)) {
 			return direct as Record<string, unknown>;
 		}
@@ -60,7 +60,7 @@ export function parseJsonFromResponse(response: string): Record<string, unknown>
 			if (depth === 0) {
 				const candidate = cleaned.slice(start, i + 1);
 				try {
-					const parsed = JSON.parse(candidate);
+					const parsed: unknown = JSON.parse(candidate);
 					if (typeof parsed === "object" && parsed !== null && !Array.isArray(parsed)) {
 						return parsed as Record<string, unknown>;
 					}

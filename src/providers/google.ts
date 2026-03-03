@@ -2,6 +2,10 @@ import { AIProvider, requestWithRetry } from "./base";
 import { ChatMessage } from "../types";
 import { VaultRecipeSettings } from "../settings";
 
+interface GoogleChatResponse {
+	candidates: { content: { parts: { text: string }[] } }[];
+}
+
 export class GoogleProvider implements AIProvider {
 	private apiKey: string;
 	private chatModel: string;
@@ -73,7 +77,8 @@ export class GoogleProvider implements AIProvider {
 			}),
 		});
 
-		const candidates = response.json.candidates;
+		const body = response.json as GoogleChatResponse;
+		const candidates = body.candidates;
 		if (
 			Array.isArray(candidates) &&
 			candidates.length > 0 &&

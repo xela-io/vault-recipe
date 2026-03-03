@@ -148,8 +148,6 @@ export class VaultRecipeSettingTab extends PluginSettingTab {
 		const { containerEl } = this;
 		containerEl.empty();
 
-		new Setting(containerEl).setName("Vault Recipe settings").setHeading();
-
 		// Security warning
 		const configDir = this.app.vault.configDir;
 		const warningEl = containerEl.createDiv({ cls: "vault-ai-warning" });
@@ -164,16 +162,17 @@ export class VaultRecipeSettingTab extends PluginSettingTab {
 		this.addApiKeyField(containerEl, "Google API key", "Required for Gemini chat", "googleApiKey", "AI...");
 
 		// --- Provider Settings ---
-		new Setting(containerEl).setName("Provider settings").setHeading();
+		new Setting(containerEl).setName("Providers").setHeading();
 
 		new Setting(containerEl)
 			.setName("Default chat provider")
 			.setDesc("Which AI provider to use for recipe extraction")
 			.addDropdown((dropdown) =>
 				dropdown
+					// eslint-disable-next-line obsidianmd/ui/sentence-case -- brand name
 					.addOption(AIProviderType.OpenAI, "OpenAI")
-					.addOption(AIProviderType.Anthropic, "Anthropic (Claude)")
-					.addOption(AIProviderType.Google, "Google (Gemini)")
+					.addOption(AIProviderType.Anthropic, "Anthropic")
+					.addOption(AIProviderType.Google, "Google")
 					.setValue(this.plugin.settings.defaultProvider)
 					.onChange(async (value) => {
 						this.plugin.settings.defaultProvider =

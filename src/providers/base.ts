@@ -39,7 +39,8 @@ export async function fetchOpenAIModels(apiKey: string): Promise<string[]> {
 		method: "GET",
 		headers: { Authorization: `Bearer ${apiKey}` },
 	});
-	const allModels = (response.json.data as { id: string }[]).map(
+	const body = response.json as { data: { id: string }[] };
+	const allModels = body.data.map(
 		(m) => m.id
 	);
 	const chatModels = allModels.filter((id) =>
@@ -64,7 +65,8 @@ export async function fetchAnthropicModels(apiKey: string): Promise<string[]> {
 			"anthropic-version": ANTHROPIC_API_VERSION,
 		},
 	});
-	return (response.json.data as { id: string }[])
+	const body = response.json as { data: { id: string }[] };
+	return body.data
 		.map((m) => m.id)
 		.sort();
 }
@@ -75,12 +77,13 @@ export async function fetchGoogleModels(apiKey: string): Promise<string[]> {
 		method: "GET",
 		headers: { "x-goog-api-key": apiKey },
 	});
-	return (
-		response.json.models as {
+	const googleBody = response.json as {
+		models: {
 			name: string;
 			supportedGenerationMethods?: string[];
-		}[]
-	)
+		}[];
+	};
+	return googleBody.models
 		.filter((m) =>
 			m.supportedGenerationMethods?.includes("generateContent")
 		)
