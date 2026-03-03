@@ -10,6 +10,15 @@ import { sanitizeFileName, ensureFolder, parseJsonFromResponse, createOrUpdateFi
 /** Maximum HTML size to process (500 KB). */
 const MAX_HTML_SIZE = 512_000;
 
+/** Convert a property value to a valid Obsidian tag (lowercase, no spaces). */
+function toTag(value: string): string {
+	return value
+		.trim()
+		.toLowerCase()
+		.replace(/\s+/g, "-")
+		.replace(/[^\p{L}\p{N}\-_]/gu, "");
+}
+
 /** Safely convert a value (possibly an object) to a readable string. */
 function stringifyItem(item: unknown): string {
 	if (typeof item === "string") return item;
@@ -454,7 +463,12 @@ ${textContent}`,
 			fm[FM.IMAGE] = imagePath || "";
 			fm[FM.DATE_IMPORTED] = recipe.dateImported;
 			fm[FM.RATING] = recipe.recRating;
-			fm[FM.TAGS] = [lang.tag];
+			const tags = [lang.tag];
+			for (const val of [recipe.recDiet, recipe.recCategory, recipe.recDifficulty]) {
+				const t = val ? toTag(val) : "";
+				if (t && !tags.includes(t)) tags.push(t);
+			}
+			fm[FM.TAGS] = tags;
 		});
 
 		return { file, imageFailed: imageFailed && !imagePath };
