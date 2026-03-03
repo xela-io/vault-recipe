@@ -46,7 +46,7 @@ export class VaultRecipeSettingTab extends PluginSettingTab {
 		super(app, plugin);
 		this.plugin = plugin;
 		this.debouncedSave = debounce(
-			() => this.plugin.saveSettings(),
+			() => { void this.plugin.saveSettings(); },
 			500,
 			true
 		);
@@ -133,7 +133,7 @@ export class VaultRecipeSettingTab extends PluginSettingTab {
 			.setDesc(desc)
 			.addText((text) => {
 				text.inputEl.type = "password";
-				text.inputEl.style.width = "300px";
+				text.inputEl.addClass("vault-ai-apikey-input");
 				text
 					.setPlaceholder(placeholder)
 					.setValue(this.plugin.settings[key])
@@ -148,25 +148,26 @@ export class VaultRecipeSettingTab extends PluginSettingTab {
 		const { containerEl } = this;
 		containerEl.empty();
 
-		containerEl.createEl("h2", { text: "Vault Recipe Settings" });
+		new Setting(containerEl).setName("Vault Recipe settings").setHeading();
 
 		// Security warning
+		const configDir = this.app.vault.configDir;
 		const warningEl = containerEl.createDiv({ cls: "vault-ai-warning" });
 		warningEl.createEl("p", {
-			text: "⚠ API keys are stored in your vault folder. Add .obsidian/plugins/vault-recipe/data.json to .gitignore if you sync your vault via Git.",
+			text: `⚠ API keys are stored in your vault folder. Add ${configDir}/plugins/vault-recipe/data.json to .gitignore if you sync your vault via Git.`,
 		});
 		// --- API Keys ---
-		containerEl.createEl("h3", { text: "API Keys" });
+		new Setting(containerEl).setName("API keys").setHeading();
 
-		this.addApiKeyField(containerEl, "OpenAI API Key", "Required for OpenAI chat", "openaiApiKey", "sk-...");
-		this.addApiKeyField(containerEl, "Anthropic API Key", "Required for Claude chat", "anthropicApiKey", "sk-ant-...");
-		this.addApiKeyField(containerEl, "Google API Key", "Required for Gemini chat", "googleApiKey", "AI...");
+		this.addApiKeyField(containerEl, "OpenAI API key", "Required for OpenAI chat", "openaiApiKey", "sk-...");
+		this.addApiKeyField(containerEl, "Anthropic API key", "Required for Claude chat", "anthropicApiKey", "sk-ant-...");
+		this.addApiKeyField(containerEl, "Google API key", "Required for Gemini chat", "googleApiKey", "AI...");
 
 		// --- Provider Settings ---
-		containerEl.createEl("h3", { text: "Provider Settings" });
+		new Setting(containerEl).setName("Provider settings").setHeading();
 
 		new Setting(containerEl)
-			.setName("Default Chat Provider")
+			.setName("Default chat provider")
 			.setDesc("Which AI provider to use for recipe extraction")
 			.addDropdown((dropdown) =>
 				dropdown
@@ -182,7 +183,7 @@ export class VaultRecipeSettingTab extends PluginSettingTab {
 			);
 
 		new Setting(containerEl)
-			.setName("Recipe Language")
+			.setName("Recipe language")
 			.setDesc("Language for recipes and AI prompts")
 			.addDropdown((dropdown) => {
 				for (const [key, lang] of Object.entries(LANGUAGES)) {
@@ -198,11 +199,11 @@ export class VaultRecipeSettingTab extends PluginSettingTab {
 			});
 
 		// --- Model Settings ---
-		containerEl.createEl("h3", { text: "Models" });
+		new Setting(containerEl).setName("Models").setHeading();
 
 		this.addModelDropdown(
 			containerEl,
-			"OpenAI Model",
+			"OpenAI model",
 			"openaiChatModel",
 			this.plugin.settings.openaiApiKey,
 			fetchOpenAIModels
@@ -210,7 +211,7 @@ export class VaultRecipeSettingTab extends PluginSettingTab {
 
 		this.addModelDropdown(
 			containerEl,
-			"Anthropic Model",
+			"Anthropic model",
 			"anthropicChatModel",
 			this.plugin.settings.anthropicApiKey,
 			fetchAnthropicModels
@@ -218,14 +219,14 @@ export class VaultRecipeSettingTab extends PluginSettingTab {
 
 		this.addModelDropdown(
 			containerEl,
-			"Google Model",
+			"Google model",
 			"googleChatModel",
 			this.plugin.settings.googleApiKey,
 			fetchGoogleModels
 		);
 
 		// --- Recipe Settings ---
-		containerEl.createEl("h3", { text: "Recipe Import" });
+		new Setting(containerEl).setName("Recipe import").setHeading();
 
 		new Setting(containerEl)
 			.setName("Recipe folder")

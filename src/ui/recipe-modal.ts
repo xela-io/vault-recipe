@@ -143,14 +143,14 @@ export class RecipeModal extends Modal {
 			}
 		};
 
-		importBtn.addEventListener("click", doImport);
+		importBtn.addEventListener("click", () => void doImport());
 		urlInput.addEventListener("keydown", (e) => {
-			if (e.key === "Enter") doImport();
+			if (e.key === "Enter") void doImport();
 		});
 
 		cancelBtn.addEventListener("click", () => this.close());
 
-		saveBtn.addEventListener("click", async () => {
+		const doSave = async () => {
 			if (!this.recipeData) return;
 
 			// Check for existing recipe (first click shows warning, second click confirms)
@@ -195,7 +195,8 @@ export class RecipeModal extends Modal {
 				saveBtn.disabled = false;
 				saveBtn.textContent = lang.modalSave;
 			}
-		});
+		};
+		saveBtn.addEventListener("click", () => void doSave());
 
 		urlInput.focus();
 	}

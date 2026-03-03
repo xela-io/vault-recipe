@@ -177,6 +177,11 @@
 	border: 1px solid var(--text-warning, var(--text-error));
 }
 
+/* API key input width */
+.vault-ai-apikey-input {
+	width: 300px;
+}
+
 /* Warning in settings */
 .vault-ai-warning {
 	font-size: 13px;

@@ -19,18 +19,31 @@ function toTag(value: string): string {
 		.replace(/[^\p{L}\p{N}\-_]/gu, "");
 }
 
+/** Safely extract a string from an unknown value (avoids [object Object]). */
+function safeStr(v: unknown): string {
+	if (typeof v === "string") return v;
+	if (typeof v === "number" || typeof v === "boolean") return String(v);
+	return "";
+}
+
 /** Safely convert a value (possibly an object) to a readable string. */
 function stringifyItem(item: unknown): string {
 	if (typeof item === "string") return item;
+	if (typeof item === "number") return String(item);
 	if (item && typeof item === "object") {
 		const obj = item as Record<string, unknown>;
 		// AI-returned structured ingredient: {item, amount, unit, notes}
 		if (typeof obj["item"] === "string") {
 			let s = "";
-			if (obj["amount"] != null) s += `${obj["amount"]} `;
-			if (obj["unit"]) s += `${obj["unit"]} `;
+			const amount = obj["amount"];
+			if (amount != null && (typeof amount === "string" || typeof amount === "number")) {
+				s += `${amount} `;
+			}
+			const unit = obj["unit"];
+			if (typeof unit === "string") s += `${unit} `;
 			s += obj["item"];
-			if (obj["notes"]) s += ` (${obj["notes"]})`;
+			const notes = obj["notes"];
+			if (typeof notes === "string") s += ` (${notes})`;
 			return s.trim();
 		}
 		// Schema.org HowToItem / structured ingredient objects
@@ -200,7 +213,7 @@ export class RecipeImporterService {
 		}
 
 		return {
-			title: String(obj["name"] || ""),
+			title: typeof obj["name"] === "string" ? obj["name"] : "",
 			ingredients: Array.isArray(obj["recipeIngredient"])
 				? obj["recipeIngredient"].map(stringifyItem)
 				: [],
@@ -219,11 +232,13 @@ export class RecipeImporterService {
 			const first = imageData[0];
 			if (typeof first === "string") return first;
 			if (first && typeof first === "object") {
-				return String((first as Record<string, unknown>)["url"] || "");
+				const url = (first as Record<string, unknown>)["url"];
+				return typeof url === "string" ? url : "";
 			}
 		}
 		if (imageData && typeof imageData === "object" && !Array.isArray(imageData)) {
-			return String((imageData as Record<string, unknown>)["url"] || "");
+			const url = (imageData as Record<string, unknown>)["url"];
+			return typeof url === "string" ? url : "";
 		}
 		return "";
 	}
@@ -357,24 +372,22 @@ ${textContent}`,
 		}
 
 		// If AI found a better image in fallback mode, use it
-		const finalImageUrl =
-			imageUrl ||
-			String(parsed.bestImageUrl || "");
+		const finalImageUrl = imageUrl || safeStr(parsed.bestImageUrl);
 
 		return {
-			title: String(parsed.title),
+			title: parsed.title as string,
 			source: url,
-			servings: String(parsed.servings || ""),
-			recPreptime: String(parsed.recPreptime || ""),
-			recDiet: String(parsed.recDiet || ""),
-			recCategory: String(parsed.recCategory || ""),
-			recCuisine: String(parsed.recCuisine || ""),
-			recDifficulty: String(parsed.recDifficulty || ""),
+			servings: safeStr(parsed.servings),
+			recPreptime: safeStr(parsed.recPreptime),
+			recDiet: safeStr(parsed.recDiet),
+			recCategory: safeStr(parsed.recCategory),
+			recCuisine: safeStr(parsed.recCuisine),
+			recDifficulty: safeStr(parsed.recDifficulty),
 			dateImported: new Date().toISOString().split("T")[0],
 			recRating: 0,
 			ingredients: parsed.ingredients.map(stringifyItem),
 			steps: parsed.steps.map(stringifyItem),
-			notes: String(parsed.notes || ""),
+			notes: safeStr(parsed.notes),
 			imageUrl: finalImageUrl,
 		};
 	}

@@ -70,9 +70,9 @@ export class ScaleModal extends Modal {
 			}
 		};
 
-		submitBtn.addEventListener("click", doSubmit);
+		submitBtn.addEventListener("click", () => void doSubmit());
 		input.addEventListener("keydown", (e) => {
-			if (e.key === "Enter") doSubmit();
+			if (e.key === "Enter") void doSubmit();
 		});
 
 		input.focus();

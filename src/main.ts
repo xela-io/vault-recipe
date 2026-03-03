@@ -39,7 +39,7 @@ export default class VaultRecipePlugin extends Plugin {
 		this.addSettingTab(new VaultRecipeSettingTab(this.app, this));
 
 		this.addCommand({
-			id: "vault-recipe-import",
+			id: "import",
 			name: "Import recipe from URL",
 			callback: () => {
 				const lang = getLanguageConfig(this.settings.recipeLanguage);
@@ -52,7 +52,7 @@ export default class VaultRecipePlugin extends Plugin {
 		});
 
 		this.addCommand({
-			id: "vault-recipe-overview",
+			id: "overview",
 			name: "Generate recipe overview",
 			callback: async () => {
 				try {
@@ -72,9 +72,9 @@ export default class VaultRecipePlugin extends Plugin {
 		});
 
 		this.addCommand({
-			id: "vault-recipe-scale",
+			id: "scale",
 			name: "Scale recipe servings",
-			editorCallback: async (_editor, ctx) => {
+			editorCallback: (_editor, ctx) => {
 				const file = ctx.file;
 				if (!file) {
 					new Notice("No active file");

@@ -30,7 +30,7 @@ export async function requestWithRetry(
 			throw lastError;
 		}
 	}
-	throw lastError;
+	throw lastError ?? new Error("Request failed after retries");
 }
 
 export async function fetchOpenAIModels(apiKey: string): Promise<string[]> {
@@ -127,6 +127,6 @@ export function createProvider(
 		case AIProviderType.Google:
 			return new GoogleProvider(settings);
 		default:
-			throw new Error(`Unknown provider type: ${type}`);
+			throw new Error(`Unknown provider type: ${type as string}`);
 	}
 }
