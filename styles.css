@@ -44,6 +44,14 @@
 	100% { transform: rotate(360deg); }
 }
 
+@media (prefers-reduced-motion: reduce) {
+	.vault-ai-spinner {
+		animation: none;
+		border-top-color: var(--interactive-accent);
+		opacity: 0.7;
+	}
+}
+
 /* Error */
 .vault-ai-error {
 	padding: 12px;
@@ -103,6 +111,7 @@
 .vault-ai-recipe-input:focus {
 	border-color: var(--interactive-accent);
 	outline: none;
+	box-shadow: 0 0 0 2px var(--interactive-accent);
 }
 
 .vault-ai-recipe-preview {
@@ -157,8 +166,24 @@
 	margin-bottom: 12px;
 }
 
+/* Overwrite warning in recipe modal */
+.vault-ai-overwrite-warning {
+	padding: 10px 12px;
+	margin-bottom: 12px;
+	border-radius: 4px;
+	font-size: 13px;
+	color: var(--text-warning, var(--text-error));
+	background: var(--background-secondary);
+	border: 1px solid var(--text-warning, var(--text-error));
+}
+
 /* Warning in settings */
 .vault-ai-warning {
 	font-size: 13px;
 	line-height: 1.4;
+	padding: 10px;
+	border-radius: 5px;
+	margin-bottom: 16px;
+	border: 1px solid var(--text-accent);
+	background-color: var(--background-secondary);
 }

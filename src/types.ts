@@ -18,12 +18,10 @@ export interface RecipeData {
 	recCategory: string;
 	recCuisine: string;
 	recDifficulty: string;
-	recImage?: string;
 	dateImported: string;
 	recRating: number;
 	ingredients: string[];
 	steps: string[];
 	notes: string;
 	imageUrl: string;
-	imagePath?: string;
 }

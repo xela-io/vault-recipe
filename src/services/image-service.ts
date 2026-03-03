@@ -77,13 +77,15 @@ export class ImageService {
 			const response = await requestUrl({
 				url: imageUrl,
 				headers: {
-					Referer: sourceUrl || imageUrl,
+					"Referer": sourceUrl || imageUrl,
+					"User-Agent": "Mozilla/5.0 (compatible; Obsidian)",
+					"Accept": "image/*,*/*;q=0.8",
 				},
 			});
 
-			// Validate content type
+			// Validate content type (allow image/*, octet-stream, and missing content-type)
 			const contentType = response.headers["content-type"] || "";
-			if (contentType && !contentType.startsWith("image/")) {
+			if (contentType && !contentType.startsWith("image/") && !contentType.includes("octet-stream")) {
 				console.warn(`[Vault Recipe] Skipping non-image content-type: ${contentType}`);
 				return null;
 			}

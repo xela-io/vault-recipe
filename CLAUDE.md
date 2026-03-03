@@ -37,10 +37,17 @@ Output: `main.js` (CJS bundle built by esbuild from `src/main.ts`). No test or l
 
 **Types:** `src/types.ts` — `AIProviderType` enum, `ChatMessage` and `RecipeData` interfaces.
 
+**Styles:** `styles.css` — All CSS classes prefixed with `.vault-ai-` for namespace isolation. Uses Obsidian CSS variables for theming.
+
 ## Key Patterns
 
 - All HTTP requests go through Obsidian's `requestUrl` API (not `fetch`), wrapped in `requestWithRetry`
 - AI providers are interchangeable via the factory pattern in `base.ts`
-- Recipes are stored as markdown notes with YAML frontmatter (title, servings, category, cuisine, difficulty, diet, preptime, rating, source, image)
+- Services receive a `getChatProvider()` callback (not a singleton) so the provider can be switched dynamically
+- Recipes are stored as markdown notes with YAML frontmatter using `rcp_` prefix for fields (e.g., `rcp_servings`, `rcp_category`, `rcp_cuisine`)
 - The recipe tag used in frontmatter is language-dependent (e.g., `#rezept` for de, `#recipe` for en)
 - TypeScript strict mode: `noImplicitAny` and `strictNullChecks` are enabled
+- Localization is deep: `languages.ts` contains not just UI strings but also AI prompt templates and Dataview column aliases. Prompt functions take parameters (e.g., `scalerUser(from, to, ingredients)`)
+- Each AI provider has distinct message format adaptations: OpenAI uses standard messages, Anthropic moves system to a separate `system` field, Google maps "assistant" to "model" role and prepends system text to the first user message
+- File operations use Obsidian APIs (`getAbstractFileByPath`, `vault.create`, type guards like `child instanceof TFile`)
+- User feedback uses Obsidian's `Notice` component; error extraction pattern: `e instanceof Error ? e.message : String(e)`

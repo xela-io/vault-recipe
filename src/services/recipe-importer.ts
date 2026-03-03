@@ -10,6 +10,29 @@ import { sanitizeFileName, ensureFolder, parseJsonFromResponse, createOrUpdateFi
 /** Maximum HTML size to process (500 KB). */
 const MAX_HTML_SIZE = 512_000;
 
+/** Safely convert a value (possibly an object) to a readable string. */
+function stringifyItem(item: unknown): string {
+	if (typeof item === "string") return item;
+	if (item && typeof item === "object") {
+		const obj = item as Record<string, unknown>;
+		// AI-returned structured ingredient: {item, amount, unit, notes}
+		if (typeof obj["item"] === "string") {
+			let s = "";
+			if (obj["amount"] != null) s += `${obj["amount"]} `;
+			if (obj["unit"]) s += `${obj["unit"]} `;
+			s += obj["item"];
+			if (obj["notes"]) s += ` (${obj["notes"]})`;
+			return s.trim();
+		}
+		// Schema.org HowToItem / structured ingredient objects
+		if (typeof obj["text"] === "string") return obj["text"];
+		if (typeof obj["name"] === "string") return obj["name"];
+		// Fallback: try JSON representation instead of "[object Object]"
+		return JSON.stringify(item);
+	}
+	return String(item);
+}
+
 interface JsonLdRecipe {
 	title: string;
 	ingredients: string[];
@@ -170,7 +193,7 @@ export class RecipeImporterService {
 		return {
 			title: String(obj["name"] || ""),
 			ingredients: Array.isArray(obj["recipeIngredient"])
-				? obj["recipeIngredient"].map(String)
+				? obj["recipeIngredient"].map(stringifyItem)
 				: [],
 			steps,
 			totalTime,
@@ -340,8 +363,8 @@ ${textContent}`,
 			recDifficulty: String(parsed.recDifficulty || ""),
 			dateImported: new Date().toISOString().split("T")[0],
 			recRating: 0,
-			ingredients: parsed.ingredients.map(String),
-			steps: parsed.steps.map(String),
+			ingredients: parsed.ingredients.map(stringifyItem),
+			steps: parsed.steps.map(stringifyItem),
 			notes: String(parsed.notes || ""),
 			imageUrl: finalImageUrl,
 		};
@@ -369,10 +392,12 @@ ${textContent}`,
 		// Build body
 		let body = "\n";
 
-		// Embed image if downloaded
+		// Embed image: local file if downloaded, otherwise external URL
 		if (imagePath) {
 			const imageFileName = imagePath.split("/").pop() || "";
 			body += `![[${imageFileName}]]\n\n`;
+		} else if (recipe.imageUrl) {
+			body += `![${recipe.title}](${recipe.imageUrl})\n\n`;
 		}
 
 		const ingredientsList = recipe.ingredients

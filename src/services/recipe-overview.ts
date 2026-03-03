@@ -1,6 +1,8 @@
 import { App, TFile, TFolder } from "obsidian";
 import { VaultRecipeSettings } from "../settings";
 import { getLanguageConfig } from "../languages";
+import { FM } from "../constants";
+import { ensureFolder, createOrUpdateFile } from "../utils";
 
 interface RecipeMeta {
 	fileName: string;
@@ -21,26 +23,24 @@ export class RecipeOverviewService {
 		private settings: VaultRecipeSettings
 	) {}
 
-	async generateOverview(): Promise<TFile> {
+	async generateOverview(): Promise<{ file: TFile; recipeCount: number }> {
+		const lang = getLanguageConfig(this.settings.recipeLanguage);
 		const recipes = this.collectRecipes();
 		const content = this.buildOverviewContent(recipes);
 
 		const folder = this.settings.recipeFolder;
-		const fileName = this.settings.overviewFileName || "Rezept-Übersicht";
+		const fileName = this.settings.overviewFileName || lang.overviewTitle;
 		const filePath = `${folder}/${fileName}.md`;
 
-		// Ensure folder exists
-		if (!this.app.vault.getAbstractFileByPath(folder)) {
-			await this.app.vault.createFolder(folder);
-		}
+		await ensureFolder(this.app, folder);
 
-		const existing = this.app.vault.getAbstractFileByPath(filePath);
-		if (existing instanceof TFile) {
-			await this.app.vault.modify(existing, content);
-			return existing;
-		}
+		const file = await createOrUpdateFile(this.app, filePath, content);
+		return { file, recipeCount: recipes.length };
+	}
 
-		return await this.app.vault.create(filePath, content);
+	private hasRecipeTag(tags: unknown, tag: string): boolean {
+		if (Array.isArray(tags)) return tags.includes(tag);
+		return tags === tag;
 	}
 
 	private collectRecipes(): RecipeMeta[] {
@@ -53,42 +53,50 @@ export class RecipeOverviewService {
 		const recipes: RecipeMeta[] = [];
 		const overviewName = this.settings.overviewFileName || lang.overviewTitle;
 
+		this.collectRecipesRecursive(folder, recipes, overviewName, lang);
+
+		recipes.sort((a, b) => a.title.localeCompare(b.title, this.settings.recipeLanguage));
+		return recipes;
+	}
+
+	private collectRecipesRecursive(
+		folder: TFolder,
+		recipes: RecipeMeta[],
+		overviewName: string,
+		lang: ReturnType<typeof getLanguageConfig>
+	): void {
 		for (const child of folder.children) {
+			if (child instanceof TFolder) {
+				this.collectRecipesRecursive(child, recipes, overviewName, lang);
+				continue;
+			}
+
 			if (!(child instanceof TFile) || child.extension !== "md") continue;
 			if (child.basename === overviewName) continue;
 
 			const cache = this.app.metadataCache.getFileCache(child);
 			const fm = cache?.frontmatter;
-			if (!fm || !fm.tags?.includes(lang.tag)) {
-				// Also check tags array format
-				const hasTags =
-					fm &&
-					(fm.tags === lang.tag ||
-						(Array.isArray(fm.tags) && fm.tags.includes(lang.tag)));
-				if (!hasTags) continue;
-			}
+			if (!fm || !this.hasRecipeTag(fm[FM.TAGS], lang.tag)) continue;
 
 			recipes.push({
 				fileName: child.basename,
-				title: String(fm.title || child.basename),
-				servings: String(fm.rcp_servings || ""),
-				recPreptime: String(fm.rcp_preptime || ""),
-				recDiet: String(fm.rcp_diet || ""),
-				recCategory: String(fm.rcp_category || ""),
-				recCuisine: String(fm.rcp_cuisine || ""),
-				recDifficulty: String(fm.rcp_difficulty || ""),
-				recRating: Number(fm.rcp_rating ?? 0),
-				dateImported: String(fm.date_imported || ""),
+				title: String(fm[FM.TITLE] || child.basename),
+				servings: String(fm[FM.SERVINGS] || ""),
+				recPreptime: String(fm[FM.PREPTIME] || ""),
+				recDiet: String(fm[FM.DIET] || ""),
+				recCategory: String(fm[FM.CATEGORY] || ""),
+				recCuisine: String(fm[FM.CUISINE] || ""),
+				recDifficulty: String(fm[FM.DIFFICULTY] || ""),
+				recRating: Number(fm[FM.RATING] ?? 0),
+				dateImported: String(fm[FM.DATE_IMPORTED] || ""),
 			});
 		}
-
-		recipes.sort((a, b) => a.title.localeCompare(b.title, "de"));
-		return recipes;
 	}
 
 	private buildOverviewContent(recipes: RecipeMeta[]): string {
 		const lang = getLanguageConfig(this.settings.recipeLanguage);
 		const sections: string[] = [];
+		const folder = this.settings.recipeFolder;
 
 		// Header
 		sections.push(`# ${lang.overviewTitle}\n`);
@@ -103,15 +111,15 @@ export class RecipeOverviewService {
 		);
 		sections.push("```dataview");
 		sections.push("TABLE");
-		sections.push(`  rcp_category AS "${lang.dvCategory}",`);
-		sections.push(`  rcp_cuisine AS "${lang.dvCuisine}",`);
-		sections.push(`  rcp_difficulty AS "${lang.dvDifficulty}",`);
-		sections.push(`  rcp_diet AS "${lang.dvDiet}",`);
-		sections.push(`  rcp_servings AS "${lang.dvServings}",`);
-		sections.push(`  rcp_preptime AS "${lang.dvTime}",`);
-		sections.push(`  rcp_rating AS "${lang.dvRating}",`);
-		sections.push(`  date_imported AS "${lang.dvImported}"`);
-		sections.push(`FROM "${this.settings.recipeFolder}"`);
+		sections.push(`  ${FM.CATEGORY} AS "${lang.dvCategory}",`);
+		sections.push(`  ${FM.CUISINE} AS "${lang.dvCuisine}",`);
+		sections.push(`  ${FM.DIFFICULTY} AS "${lang.dvDifficulty}",`);
+		sections.push(`  ${FM.DIET} AS "${lang.dvDiet}",`);
+		sections.push(`  ${FM.SERVINGS} AS "${lang.dvServings}",`);
+		sections.push(`  ${FM.PREPTIME} AS "${lang.dvTime}",`);
+		sections.push(`  ${FM.RATING} AS "${lang.dvRating}",`);
+		sections.push(`  ${FM.DATE_IMPORTED} AS "${lang.dvImported}"`);
+		sections.push(`FROM "${folder}"`);
 		sections.push(`WHERE contains(tags, "${lang.tag}")`);
 		sections.push("SORT title ASC");
 		sections.push("```\n");
@@ -119,35 +127,14 @@ export class RecipeOverviewService {
 		// Filter examples
 		sections.push(`## ${lang.overviewFilterExamples}\n`);
 
-		// Main courses filter — use first "main course" label from categoryLabels
 		const mainCourseLabel = lang.categoryLabels.split("/")[1] || "Main Course";
-		sections.push(`### ${lang.overviewMainCourses}\n`);
-		sections.push("```dataview");
-		sections.push(`TABLE rcp_cuisine AS "${lang.dvCuisine}", rcp_difficulty AS "${lang.dvDifficulty}", rcp_preptime AS "${lang.dvTime}"`);
-		sections.push(`FROM "${this.settings.recipeFolder}"`);
-		sections.push(`WHERE rcp_category = "${mainCourseLabel}"`);
-		sections.push("SORT title ASC");
-		sections.push("```\n");
+		this.addFilterQuery(sections, lang.overviewMainCourses, `WHERE ${FM.CATEGORY} = "${mainCourseLabel}"`, folder, lang);
 
-		// Vegetarian filter — use first two diet labels (vegan/vegetarian)
 		const dietParts = lang.dietLabels.split("/");
-		sections.push(`### ${lang.overviewVegetarian}\n`);
-		sections.push("```dataview");
-		sections.push(`TABLE rcp_category AS "${lang.dvCategory}", rcp_cuisine AS "${lang.dvCuisine}", rcp_preptime AS "${lang.dvTime}"`);
-		sections.push(`FROM "${this.settings.recipeFolder}"`);
-		sections.push(`WHERE rcp_diet = "${dietParts[1] || "vegetarian"}" OR rcp_diet = "${dietParts[0] || "vegan"}"`);
-		sections.push("SORT title ASC");
-		sections.push("```\n");
+		this.addFilterQuery(sections, lang.overviewVegetarian, `WHERE ${FM.DIET} = "${dietParts[1] || "vegetarian"}" OR ${FM.DIET} = "${dietParts[0] || "vegan"}"`, folder, lang);
 
-		// Easy filter — use first difficulty label
 		const easyLabel = lang.difficultyLabels.split("/")[0] || "easy";
-		sections.push(`### ${lang.overviewEasy}\n`);
-		sections.push("```dataview");
-		sections.push(`TABLE rcp_category AS "${lang.dvCategory}", rcp_cuisine AS "${lang.dvCuisine}", rcp_preptime AS "${lang.dvTime}"`);
-		sections.push(`FROM "${this.settings.recipeFolder}"`);
-		sections.push(`WHERE rcp_difficulty = "${easyLabel}"`);
-		sections.push("SORT title ASC");
-		sections.push("```\n");
+		this.addFilterQuery(sections, lang.overviewEasy, `WHERE ${FM.DIFFICULTY} = "${easyLabel}"`, folder, lang);
 
 		// Static table
 		const headers = lang.overviewTableHeaders;
@@ -172,5 +159,15 @@ export class RecipeOverviewService {
 
 		sections.push("");
 		return sections.join("\n");
+	}
+
+	private addFilterQuery(sections: string[], title: string, whereClause: string, folder: string, lang: ReturnType<typeof getLanguageConfig>): void {
+		sections.push(`### ${title}\n`);
+		sections.push("```dataview");
+		sections.push(`TABLE ${FM.CUISINE} AS "${lang.dvCuisine}", ${FM.DIFFICULTY} AS "${lang.dvDifficulty}", ${FM.PREPTIME} AS "${lang.dvTime}"`);
+		sections.push(`FROM "${folder}"`);
+		sections.push(whereClause);
+		sections.push("SORT title ASC");
+		sections.push("```\n");
 	}
 }
