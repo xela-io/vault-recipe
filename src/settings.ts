@@ -169,7 +169,6 @@ export class VaultRecipeSettingTab extends PluginSettingTab {
 			.setDesc("Which AI provider to use for recipe extraction")
 			.addDropdown((dropdown) =>
 				dropdown
-					// eslint-disable-next-line obsidianmd/ui/sentence-case -- brand name
 					.addOption(AIProviderType.OpenAI, "OpenAI")
 					.addOption(AIProviderType.Anthropic, "Anthropic")
 					.addOption(AIProviderType.Google, "Google")
